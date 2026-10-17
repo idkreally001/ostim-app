@@ -54,14 +54,18 @@ class ConfigManager {
     const remoteUrl = process.env.EXPO_PUBLIC_REMOTE_CONFIG_URL;
     const masterKey = process.env.EXPO_PUBLIC_APP_CONFIG_KEY;
 
-    if (!remoteUrl || !masterKey || remoteUrl.includes('CHANGE_THIS') || masterKey.includes('CHANGE_THIS')) {
+    if (
+      !remoteUrl ||
+      !masterKey ||
+      remoteUrl.includes('CHANGE_THIS') ||
+      remoteUrl.includes('username/ostim-app') ||
+      masterKey.includes('CHANGE_THIS')
+    ) {
       return false;
     }
 
     try {
-      const res = await fetch(remoteUrl, {
-        headers: { 'Cache-Control': 'no-cache' },
-      });
+      const res = await fetch(remoteUrl);
 
       if (!res.ok) {
         throw new Error(`Remote config HTTP error: ${res.status}`);

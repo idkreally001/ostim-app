@@ -77,9 +77,10 @@ export class OstimObsClient {
     }
 
     const data = await res.json();
-    const token = data.Token || data.token;
+    const token = data.Value || data.token || data.Token;
     if (!token) {
-      throw new Error('OBS Login response did not contain a valid JWT Token.');
+      const errMsg = data.message || data.Message || data.Hata || 'Invalid credentials or missing token';
+      throw new Error(`OBS Login: ${errMsg}`);
     }
 
     this.jwtToken = token;
