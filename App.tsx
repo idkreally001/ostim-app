@@ -6,23 +6,32 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AuthStorage } from './src/storage/authStorage';
 import { obsClient } from './src/api/obsClient';
 import { configManager } from './src/config/configManager';
+import { logService } from './src/services/logService';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { TimetableScreen } from './src/screens/TimetableScreen';
 import { GradesScreen } from './src/screens/GradesScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
+import { LogsScreen } from './src/screens/LogsScreen';
 
-type Tab = 'dashboard' | 'timetable' | 'grades' | 'attendance';
+type Tab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>('dashboard');
+
+  // Easter Egg: 5 taps on 'Özet' reveals developer logs tab
+  const [tapCount, setTapCount] = useState(0);
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -33,20 +42,42 @@ export default function App() {
           obsClient.setTokens(session.jwtToken, session.studentNo);
           setIsAuthenticated(true);
         }
-      } catch (err) {
-        console.warn('Bootstrap error:', err);
+      } catch (err: any) {
+        logService.error('App Bootstrap', 'Başlatma hatası', err.message);
       } finally {
         setInitializing(false);
       }
     };
 
     bootstrap();
+
+    const unsub = logService.subscribe(() => {
+      setErrorCount(logService.getErrorCount());
+    });
+    return unsub;
   }, []);
+
+  const handleDashboardTap = () => {
+    setCurrentTab('dashboard');
+    const now = Date.now();
+    if (now - lastTapTime < 1500) {
+      const nextCount = tapCount + 1;
+      setTapCount(nextCount);
+      if (nextCount >= 5 && !devUnlocked) {
+        setDevUnlocked(true);
+        Alert.alert('Geliştirici Modu Açıldı', 'Hata ve sistem günlükleri sekmesi aktif edildi.');
+      }
+    } else {
+      setTapCount(1);
+    }
+    setLastTapTime(now);
+  };
 
   const handleLogout = async () => {
     await AuthStorage.clearSession();
     setIsAuthenticated(false);
     setCurrentTab('dashboard');
+    setDevUnlocked(false);
   };
 
   if (initializing) {
@@ -77,6 +108,8 @@ export default function App() {
         return <GradesScreen />;
       case 'attendance':
         return <AttendanceScreen />;
+      case 'logs':
+        return <LogsScreen />;
     }
   };
 
@@ -90,6 +123,8 @@ export default function App() {
         return 'Dönem Notları';
       case 'attendance':
         return 'Devamsızlık Durumu';
+      case 'logs':
+        return 'Sistem & Hata Günlüğü';
     }
   };
 
@@ -114,7 +149,7 @@ export default function App() {
       <View style={styles.bottomNav}>
         <TouchableOpacity
           style={[styles.navItem, currentTab === 'dashboard' && styles.activeNavItem]}
-          onPress={() => setCurrentTab('dashboard')}
+          onPress={handleDashboardTap}
         >
           <Text style={styles.navIcon}>🏠</Text>
           <Text style={[styles.navLabel, currentTab === 'dashboard' && styles.activeNavLabel]}>
@@ -151,6 +186,26 @@ export default function App() {
             Devam
           </Text>
         </TouchableOpacity>
+
+        {/* Easter Egg Dev Logs Tab */}
+        {devUnlocked ? (
+          <TouchableOpacity
+            style={[styles.navItem, currentTab === 'logs' && styles.activeNavItem]}
+            onPress={() => setCurrentTab('logs')}
+          >
+            <View style={styles.iconWithBadge}>
+              <Text style={styles.navIcon}>🐞</Text>
+              {errorCount > 0 ? (
+                <View style={styles.errorBadge}>
+                  <Text style={styles.errorBadgeText}>{errorCount > 9 ? '9+' : errorCount}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.navLabel, currentTab === 'logs' && styles.activeNavLabel]}>
+              Günlük
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -159,17 +214,17 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#090d16',
   },
   splashContainer: {
     flex: 1,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#090d16',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
-    height: 54,
-    backgroundColor: '#0a0e17',
+    height: 52,
+    backgroundColor: '#090d16',
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
     paddingHorizontal: 16,
@@ -179,14 +234,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#f8fafc',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
   logoutBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   logoutBtnText: {
     color: '#f87171',
@@ -198,26 +256,49 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 64,
-    backgroundColor: '#121826',
+    height: 62,
+    backgroundColor: '#111827',
     borderTopWidth: 1,
     borderTopColor: '#1e293b',
-    paddingBottom: 6,
-    paddingTop: 6,
+    paddingBottom: 4,
+    paddingTop: 4,
+    paddingHorizontal: 4,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
+    paddingVertical: 4,
   },
   activeNavItem: {
     backgroundColor: '#1e293b',
   },
+  iconWithBadge: {
+    position: 'relative',
+    alignItems: 'center',
+  },
   navIcon: {
     fontSize: 18,
     marginBottom: 2,
+  },
+  errorBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  errorBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
   navLabel: {
     fontSize: 11,

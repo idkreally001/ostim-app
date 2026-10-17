@@ -122,11 +122,16 @@ export const GradesScreen: React.FC = () => {
                         {item.courseCode} • {item.akts} AKTS ({item.credits} Kredi)
                       </Text>
                     </View>
-                    {item.letterGrade ? (
+                    <View style={styles.badgeCol}>
                       <View style={[styles.letterBadge, { backgroundColor: badgeBg }]}>
-                        <Text style={styles.letterText}>{item.letterGrade}</Text>
+                        <Text style={styles.letterText}>{item.letterGrade || '--'}</Text>
                       </View>
-                    ) : null}
+                      {item.passed !== undefined ? (
+                        <Text style={[styles.passText, item.passed ? styles.passSuccess : styles.passFail]}>
+                          {item.passed ? 'Geçti' : 'Kaldı'}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
 
                   <View style={styles.scoresRow}>
@@ -251,15 +256,31 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 12,
   },
+  badgeCol: {
+    alignItems: 'flex-end',
+  },
   letterBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
+    alignItems: 'center',
+    minWidth: 42,
   },
   letterText: {
     color: '#ffffff',
     fontWeight: '800',
     fontSize: 14,
+  },
+  passText: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  passSuccess: {
+    color: '#34d399',
+  },
+  passFail: {
+    color: '#f87171',
   },
   scoresRow: {
     flexDirection: 'row',

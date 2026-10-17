@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
+  Alert,
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
 import { TimetableEntry } from '../types/models';
@@ -44,28 +46,77 @@ export const TimetableScreen: React.FC = () => {
     fetchTimetable();
   }, []);
 
+  const exportCsv = () => {
+    if (schedule.length === 0) {
+      Alert.alert('Bilgi', 'Dışa aktarılacak ders bulunamadı.');
+      return;
+    }
+
+    const dayMap: Record<number, string> = {
+      0: 'Pazartesi',
+      1: 'Salı',
+      2: 'Çarşamba',
+      3: 'Perşembe',
+      4: 'Cuma',
+    };
+
+    const rows = [
+      ['Gün', 'Başlangıç', 'Bitiş', 'Ders Kodu', 'Ders Adı', 'Derslik', 'Öğretim Elemanı'],
+      ...schedule.map((item) => [
+        `"${dayMap[item.dayId] || item.dayName || ''}"`,
+        `"${item.startTime}"`,
+        `"${item.endTime}"`,
+        `"${item.courseCode}"`,
+        `"${item.courseName.replace(/"/g, '""')}"`,
+        `"${item.classroom.replace(/"/g, '""')}"`,
+        `"${(item.instructor || '').replace(/"/g, '""')}"`,
+      ]),
+    ];
+
+    const csvContent = '\uFEFF' + rows.map((r) => r.join(',')).join('\r\n');
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'ostim_haftalik_ders_programi.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      Alert.alert('CSV Hazırlandı', 'Ders programı CSV formatına dönüştürüldü.');
+    }
+  };
+
   const dayClasses = schedule
     .filter((c) => c.dayId === selectedDay)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
     <View style={styles.container}>
-      {/* Day Tabs */}
+      {/* Top Bar with Day Tabs and CSV Export */}
       <View style={styles.tabBar}>
-        {DAYS.map((day) => {
-          const isActive = day.id === selectedDay;
-          return (
-            <TouchableOpacity
-              key={day.id}
-              style={[styles.tab, isActive && styles.activeTab]}
-              onPress={() => setSelectedDay(day.id)}
-            >
-              <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                {day.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        <View style={styles.daysRow}>
+          {DAYS.map((day) => {
+            const isActive = day.id === selectedDay;
+            return (
+              <TouchableOpacity
+                key={day.id}
+                style={[styles.tab, isActive && styles.activeTab]}
+                onPress={() => setSelectedDay(day.id)}
+              >
+                <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                  {day.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <TouchableOpacity style={styles.exportBtn} onPress={exportCsv}>
+          <Text style={styles.exportBtnText}>📥 CSV</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -126,33 +177,53 @@ export const TimetableScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#090d16',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#121826',
+    backgroundColor: '#111827',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    flex: 1,
+    marginRight: 10,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 12,
-    marginHorizontal: 3,
+    marginHorizontal: 2,
   },
   activeTab: {
     backgroundColor: '#2563eb',
   },
   tabText: {
     color: '#94a3b8',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   activeTabText: {
     color: '#ffffff',
+    fontWeight: '700',
+  },
+  exportBtn: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  exportBtnText: {
+    color: '#38bdf8',
+    fontSize: 12,
     fontWeight: '700',
   },
   list: {
@@ -165,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   classCard: {
-    backgroundColor: '#121826',
+    backgroundColor: '#111827',
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',

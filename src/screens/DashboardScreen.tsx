@@ -11,6 +11,7 @@ import {
 import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { StudentProfile, TimetableEntry } from '../types/models';
+import { weatherService, WeatherInfo, LessonWeatherSummary } from '../services/weatherService';
 
 interface DashboardScreenProps {
   onLogout: () => void;
@@ -20,6 +21,9 @@ interface DashboardScreenProps {
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNavigateTab }) => {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [nextClass, setNextClass] = useState<TimetableEntry | null>(null);
+  const [nextClassDateText, setNextClassDateText] = useState<string>('');
+  const [currentWeather, setCurrentWeather] = useState<WeatherInfo | null>(null);
+  const [lessonWeather, setLessonWeather] = useState<LessonWeatherSummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +43,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
 
       const timetable = await obsClient.getTimetable();
       findNextClass(timetable);
+
+      // 3. Fetch campus weather
+      weatherService.getCurrentWeather().then(setCurrentWeather);
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
       if (err.message === 'SESSION_EXPIRED') {
@@ -53,13 +60,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   const findNextClass = (schedule: TimetableEntry[]) => {
     if (!schedule || schedule.length === 0) return;
     const now = new Date();
-    const jsDay = now.getDay();
-    const currentDay = jsDay >= 1 && jsDay <= 5 ? jsDay - 1 : 0; // 0=Mon ... 4=Fri
+    const jsDay = now.getDay(); // 0=Sun, 1=Mon ... 5=Fri
+    const currentDayNo = jsDay >= 1 && jsDay <= 5 ? jsDay - 1 : 0; // 0=Mon ... 4=Fri
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     // Look for classes today starting after current time
     const todayClasses = schedule
-      .filter((c) => c.dayId === currentDay)
+      .filter((c) => c.dayId === currentDayNo)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
     const upcoming = todayClasses.find((c) => {
@@ -67,12 +74,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       return h * 60 + m >= currentMinutes;
     });
 
-    if (upcoming) {
-      setNextClass(upcoming);
-    } else if (todayClasses.length > 0) {
-      setNextClass(todayClasses[0]); // fallback to first class of today
-    } else {
-      setNextClass(schedule[0]); // fallback to first class in list
+    const targetClass = upcoming || todayClasses[0] || schedule[0];
+    setNextClass(targetClass);
+
+    // Compute formatted day/date text
+    const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+    const targetDayName = dayNames[targetClass.dayId] || targetClass.dayName || 'Bugün';
+
+    const dateFormatted = now.toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+    });
+    setNextClassDateText(`${targetDayName}, ${dateFormatted}`);
+
+    // Fetch lesson-specific weather forecast (1 hr before start)
+    if (targetClass.startTime) {
+      weatherService.getLessonForecast(targetClass.startTime).then(setLessonWeather);
     }
   };
 
@@ -99,6 +116,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
     >
+      {/* Campus Weather Bar */}
+      {currentWeather ? (
+        <View style={styles.weatherBar}>
+          <Text style={styles.weatherEmoji}>{currentWeather.emoji}</Text>
+          <Text style={styles.weatherText}>
+            OSTİM Kampüs: <Text style={styles.weatherTemp}>{currentWeather.temp}°C</Text> • {currentWeather.condition}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Header Profile Card */}
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
@@ -121,29 +148,46 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       </View>
 
       {/* Next Upcoming Lecture Card */}
-      <View style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Sıradaki Ders</Text>
+        {nextClassDateText ? (
+          <Text style={styles.sectionDate}>{nextClassDateText}</Text>
+        ) : null}
       </View>
+
       {nextClass ? (
         <View style={styles.nextClassCard}>
-          <View style={styles.timeBadge}>
-            <Text style={styles.timeText}>{nextClass.startTime}</Text>
-            <Text style={styles.endTimeText}>- {nextClass.endTime}</Text>
-          </View>
-          <View style={styles.nextClassInfo}>
-            <Text style={styles.courseName}>{nextClass.courseName}</Text>
-            <Text style={styles.courseCode}>{nextClass.courseCode}</Text>
-            <View style={styles.roomRow}>
-              <Text style={styles.roomBadge}>📍 {nextClass.classroom}</Text>
-              {nextClass.instructor ? (
-                <Text style={styles.instructorText}>{nextClass.instructor}</Text>
-              ) : null}
+          <View style={styles.cardTopRow}>
+            <View style={styles.timeBadge}>
+              <Text style={styles.timeText}>{nextClass.startTime}</Text>
+              <Text style={styles.endTimeText}>- {nextClass.endTime}</Text>
+            </View>
+            <View style={styles.nextClassInfo}>
+              <Text style={styles.courseName}>{nextClass.courseName}</Text>
+              <Text style={styles.courseCode}>{nextClass.courseCode}</Text>
+              <View style={styles.roomRow}>
+                <Text style={styles.roomBadge}>📍 {nextClass.classroom}</Text>
+                {nextClass.instructor ? (
+                  <Text style={styles.instructorText}>{nextClass.instructor}</Text>
+                ) : null}
+              </View>
             </View>
           </View>
+
+          {/* Pre-lesson Weather Forecast Widget */}
+          {lessonWeather ? (
+            <View style={styles.lessonWeatherRow}>
+              <Text style={styles.lessonWeatherEmoji}>{lessonWeather.emoji}</Text>
+              <Text style={styles.lessonWeatherText}>
+                Ders Öncesi ({lessonWeather.periodText}):{' '}
+                <Text style={styles.lessonWeatherBold}>{lessonWeather.temp}°C, {lessonWeather.condition}</Text>
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Bugün için planlanmış ders bulunmuyor.</Text>
+          <Text style={styles.emptyText}>Planlanmış ders bulunmuyor.</Text>
         </View>
       )}
 
@@ -155,7 +199,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
         <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('timetable')}>
           <Text style={styles.gridIcon}>📅</Text>
           <Text style={styles.gridTitle}>Haftalık Program</Text>
-          <Text style={styles.gridDesc}>Tüm ders saatleri ve derslikler</Text>
+          <Text style={styles.gridDesc}>Derslikler ve haftalık saatler</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('grades')}>
@@ -169,12 +213,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <Text style={styles.gridTitle}>Devamsızlık</Text>
           <Text style={styles.gridDesc}>Kalan devamsızlık hakları</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.gridCard, styles.logoutCard]} onPress={onLogout}>
-          <Text style={styles.gridIcon}>🚪</Text>
-          <Text style={[styles.gridTitle, styles.logoutText]}>Çıkış Yap</Text>
-          <Text style={styles.gridDesc}>Hesap oturumunu sonlandır</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -183,13 +221,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#090d16',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#090d16',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -198,20 +236,43 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
   },
+  weatherBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  weatherEmoji: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  weatherText: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  weatherTemp: {
+    color: '#f8fafc',
+    fontWeight: '700',
+  },
   profileCard: {
-    backgroundColor: '#121826',
+    backgroundColor: '#111827',
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#1e293b',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
@@ -219,14 +280,14 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#ffffff',
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
   },
   profileInfo: {
     flex: 1,
   },
   name: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: '#f8fafc',
     marginBottom: 2,
@@ -243,7 +304,7 @@ const styles = StyleSheet.create({
   gpaBadge: {
     backgroundColor: '#1e293b',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
@@ -256,31 +317,46 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   gpaValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#f8fafc',
     marginTop: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   sectionHeader: {
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#cbd5e1',
   },
+  sectionDate: {
+    fontSize: 12,
+    color: '#38bdf8',
+    fontWeight: '600',
+  },
   nextClassCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
+    backgroundColor: '#111827',
+    borderRadius: 18,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
     borderLeftWidth: 4,
     borderLeftColor: '#3b82f6',
-    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginBottom: 20,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   timeBadge: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0b1120',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
@@ -325,12 +401,32 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 11,
   },
+  lessonWeatherRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lessonWeatherEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  lessonWeatherText: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  lessonWeatherBold: {
+    color: '#cbd5e1',
+    fontWeight: '600',
+  },
   emptyCard: {
-    backgroundColor: '#121826',
+    backgroundColor: '#111827',
     borderRadius: 16,
     padding: 18,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   emptyText: {
     color: '#64748b',
@@ -343,7 +439,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   gridCard: {
-    backgroundColor: '#121826',
+    backgroundColor: '#111827',
     borderRadius: 16,
     padding: 16,
     width: '48%',
@@ -352,8 +448,8 @@ const styles = StyleSheet.create({
     borderColor: '#1e293b',
   },
   gridIcon: {
-    fontSize: 24,
-    marginBottom: 10,
+    fontSize: 22,
+    marginBottom: 8,
   },
   gridTitle: {
     color: '#f8fafc',
@@ -365,11 +461,5 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 11,
     lineHeight: 15,
-  },
-  logoutCard: {
-    borderColor: '#3f1c1c',
-  },
-  logoutText: {
-    color: '#f87171',
   },
 });
