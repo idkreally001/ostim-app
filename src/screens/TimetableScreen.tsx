@@ -12,18 +12,18 @@ import { obsClient } from '../api/obsClient';
 import { TimetableEntry } from '../types/models';
 
 const DAYS = [
-  { id: 1, label: 'Pzt' },
-  { id: 2, label: 'Sal' },
-  { id: 3, label: 'Çar' },
-  { id: 4, label: 'Per' },
-  { id: 5, label: 'Cum' },
+  { id: 0, label: 'Pzt' },
+  { id: 1, label: 'Sal' },
+  { id: 2, label: 'Çar' },
+  { id: 3, label: 'Per' },
+  { id: 4, label: 'Cum' },
 ];
 
 export const TimetableScreen: React.FC = () => {
   const [schedule, setSchedule] = useState<TimetableEntry[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(() => {
-    const day = new Date().getDay();
-    return day >= 1 && day <= 5 ? day : 1;
+    const day = new Date().getDay(); // 1=Mon ... 5=Fri
+    return day >= 1 && day <= 5 ? day - 1 : 0;
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

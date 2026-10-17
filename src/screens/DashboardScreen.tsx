@@ -53,7 +53,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   const findNextClass = (schedule: TimetableEntry[]) => {
     if (!schedule || schedule.length === 0) return;
     const now = new Date();
-    const currentDay = now.getDay() === 0 ? 7 : now.getDay(); // 1=Mon ... 7=Sun
+    const jsDay = now.getDay();
+    const currentDay = jsDay >= 1 && jsDay <= 5 ? jsDay - 1 : 0; // 0=Mon ... 4=Fri
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     // Look for classes today starting after current time
