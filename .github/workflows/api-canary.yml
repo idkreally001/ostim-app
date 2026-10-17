@@ -1,0 +1,30 @@
+name: OBS API Canary Health Check
+
+on:
+  schedule:
+    # Run every 12 hours (00:00 and 12:00 UTC)
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  canary-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Canary Bot
+        env:
+          APP_CONFIG_KEY: ${{ secrets.APP_CONFIG_KEY }}
+          CANARY_TEST_USER: ${{ secrets.CANARY_TEST_USER }}
+          CANARY_TEST_PASS: ${{ secrets.CANARY_TEST_PASS }}
+        run: bun run tools/canary-check.ts
