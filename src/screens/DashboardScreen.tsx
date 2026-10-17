@@ -27,7 +27,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
     try {
       // 1. Try local cache first for instant render
       const cached = await AuthStorage.getCachedProfile();
-      if (cached) {
+      if (cached && cached.firstName) {
         setProfile(cached);
         setLoading(false);
       }
