@@ -1,8 +1,15 @@
+import { Platform } from 'react-native';
 import { LmsCourseItem, LmsCalendarEvent, LmsSessionData } from '../types/models';
 import { logService } from '../services/logService';
 
 const LMS_BASE_URL = 'https://lmsclus.ostimteknik.edu.tr';
-const SERVICE_ENDPOINT = `${LMS_BASE_URL}/lib/ajax/service.php`;
+
+const getServiceEndpoint = () => {
+  if (Platform.OS === 'web') {
+    return '/lms-proxy/lib/ajax/service.php';
+  }
+  return `${LMS_BASE_URL}/lib/ajax/service.php`;
+};
 
 export class OstimLmsClient {
   private sesskey: string | null = null;
@@ -48,7 +55,8 @@ export class OstimLmsClient {
       throw new Error('LMS oturumu bulunamadı. Lütfen önce Moodle oturumunu bağlayın.');
     }
 
-    const url = `${SERVICE_ENDPOINT}?sesskey=${encodeURIComponent(this.sesskey)}&info=${encodeURIComponent(methodname)}`;
+    const endpoint = getServiceEndpoint();
+    const url = `${endpoint}?sesskey=${encodeURIComponent(this.sesskey)}&info=${encodeURIComponent(methodname)}`;
     const payload = [
       {
         index: 0,
@@ -59,14 +67,20 @@ export class OstimLmsClient {
 
     logService.info('LMS Service Call', `Calling ${methodname}`, { args });
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/javascript, */*; q=0.01',
+      'X-Moodle-Session': this.moodleSession,
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    if (Platform.OS !== 'web') {
+      headers['Cookie'] = `MoodleSession=${this.moodleSession}`;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/javascript, */*; q=0.01',
-        Cookie: `MoodleSession=${this.moodleSession}`,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
