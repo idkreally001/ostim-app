@@ -1,5 +1,11 @@
 import { Platform } from 'react-native';
-import { LmsCourseItem, LmsCalendarEvent, LmsSessionData } from '../types/models';
+import {
+  LmsCourseItem,
+  LmsCalendarEvent,
+  LmsSessionData,
+  LmsWeekDocument,
+  LmsAssignmentDetails,
+} from '../types/models';
 import { logService } from '../services/logService';
 
 const LMS_BASE_URL = 'https://lmsclus.ostimteknik.edu.tr';
@@ -197,6 +203,12 @@ export class OstimLmsClient {
         minute: '2-digit',
       });
 
+      // Sanitize actionUrl: remove &action=editsubmission so it doesn't trigger Moodle's error/nopermission
+      let cleanActionUrl: string | undefined = e.action?.url || e.url || undefined;
+      if (cleanActionUrl) {
+        cleanActionUrl = cleanActionUrl.replace(/([?&])action=editsubmission(&|$)/, '$1').replace(/[?&]$/, '');
+      }
+
       return {
         id: e.id,
         name: cleanName || e.name,
@@ -209,10 +221,124 @@ export class OstimLmsClient {
         formattedTime,
         daysRemaining,
         isOverdue,
-        actionUrl: e.action?.url || undefined,
-        actionName: e.action?.name || (isOverdue ? 'Görüntüle' : 'Teslim Et'),
+        actionUrl: cleanActionUrl,
+        actionName: isOverdue ? 'Görüntüle' : 'Teslim Sayfası',
       };
     });
+  }
+
+  /**
+   * Fetch related week documents and assignment attached files
+   */
+  public async getAssignmentDetails(assignmentId: number, actionUrl?: string): Promise<LmsAssignmentDetails> {
+    if (!actionUrl) {
+      return { assignmentId, attachedFiles: [], weekDocuments: [] };
+    }
+
+    try {
+      let targetUrl = actionUrl;
+      if (Platform.OS === 'web') {
+        targetUrl = actionUrl.replace(LMS_BASE_URL, '/lms-proxy');
+      }
+
+      const headers: Record<string, string> = {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'X-Moodle-Session': this.moodleSession || '',
+      };
+      if (Platform.OS !== 'web' && this.moodleSession) {
+        headers['Cookie'] = `MoodleSession=${this.moodleSession}`;
+      }
+
+      const pageRes = await fetch(targetUrl, { headers });
+      if (!pageRes.ok) {
+        throw new Error(`Sayfa yüklenemedi (${pageRes.status})`);
+      }
+      const pageHtml = await pageRes.text();
+
+      // 1. Extract direct attachments (PDF, ZIP, PPTX, etc.)
+      const attachedFiles: LmsWeekDocument[] = [];
+      const fileRegex = /<a[^>]*href=["']([^"']*pluginfile\.php[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+      let fMatch;
+      while ((fMatch = fileRegex.exec(pageHtml)) !== null) {
+        const fileUrl = fMatch[1].replace(/&amp;/g, '&');
+        const rawFileName = fMatch[2].replace(/<[^>]*>?/gm, '').trim();
+        if (rawFileName && !attachedFiles.some((f) => f.url === fileUrl)) {
+          attachedFiles.push({
+            title: rawFileName,
+            url: fileUrl,
+            type: detectFileType(rawFileName, fileUrl),
+            isAttachment: true,
+          });
+        }
+      }
+
+      // 2. Extract breadcrumb section link (e.g. 19 October - 25 October -> section.php?id=...)
+      let sectionName: string | undefined;
+      let sectionUrl: string | undefined;
+
+      const sectionMatch = pageHtml.match(
+        /<li[^>]*breadcrumb-item[^>]*>\s*<a[^>]*href=["']([^"']*section\.php[^"']*)["'][^>]*>([\s\S]*?)<\/a>/i
+      );
+
+      if (sectionMatch) {
+        sectionUrl = sectionMatch[1].replace(/&amp;/g, '&');
+        sectionName = sectionMatch[2].replace(/<[^>]*>?/gm, '').trim();
+      }
+
+      // 3. Fetch section HTML to get all week documents
+      const weekDocuments: LmsWeekDocument[] = [];
+
+      if (sectionUrl) {
+        let secTargetUrl = sectionUrl;
+        if (Platform.OS === 'web') {
+          secTargetUrl = sectionUrl.replace(LMS_BASE_URL, '/lms-proxy');
+        }
+
+        const secRes = await fetch(secTargetUrl, { headers });
+        if (secRes.ok) {
+          const secHtml = await secRes.text();
+          const activityRegex =
+            /<li[^>]*class=["']([^"']*activity[^"']*)["'][^>]*>[\s\S]*?<a[^>]*href=["']([^"']*)["'][^>]*>[\s\S]*?<span[^>]*class=["']instancename["'][^>]*>([\s\S]*?)<\/span>/gi;
+
+          let actMatch;
+          while ((actMatch = activityRegex.exec(secHtml)) !== null) {
+            const classes = actMatch[1];
+            const itemUrl = actMatch[2].replace(/&amp;/g, '&');
+            const rawItemName = actMatch[3]
+              .replace(/<[^>]*>?/gm, '')
+              .replace(/\s+(File|URL|Quiz|Page|Folder|Turnitin Assignment 2|Assignment)\b/gi, '')
+              .trim();
+
+            const modMatch = classes.match(/modtype_([a-z0-9_-]+)/i);
+            const modType = modMatch ? modMatch[1] : 'resource';
+
+            if (rawItemName && !itemUrl.includes(actionUrl)) {
+              weekDocuments.push({
+                title: rawItemName,
+                url: itemUrl,
+                type: detectFileType(rawItemName, itemUrl, modType),
+                isAttachment: false,
+              });
+            }
+          }
+        }
+      }
+
+      return {
+        assignmentId,
+        sectionName,
+        sectionUrl,
+        attachedFiles,
+        weekDocuments,
+      };
+    } catch (err: any) {
+      logService.warn('LMS Assignment Details', 'Failed to fetch week documents', err.message);
+      return {
+        assignmentId,
+        attachedFiles: [],
+        weekDocuments: [],
+      };
+    }
   }
 
   /**
@@ -235,4 +361,25 @@ export class OstimLmsClient {
   }
 }
 
+function detectFileType(name: string, url: string, modType?: string): LmsWeekDocument['type'] {
+  const lowerName = name.toLowerCase();
+  const lowerUrl = url.toLowerCase();
+
+  if (lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) return 'pdf';
+  if (lowerName.endsWith('.pptx') || lowerName.endsWith('.ppt') || lowerUrl.includes('.ppt')) return 'pptx';
+  if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar') || lowerUrl.includes('.zip')) return 'zip';
+  if (lowerName.endsWith('.docx') || lowerName.endsWith('.doc')) return 'doc';
+  if (modType === 'quiz' || lowerUrl.includes('/mod/quiz/')) return 'quiz';
+  if (
+    modType === 'turnitintooltwo' ||
+    lowerUrl.includes('/mod/turnitintooltwo/') ||
+    lowerName.includes('turnitin')
+  ) {
+    return 'turnitin';
+  }
+  if (modType === 'url' || lowerUrl.includes('/mod/url/')) return 'link';
+  return 'resource';
+}
+
 export const lmsClient = new OstimLmsClient();
+

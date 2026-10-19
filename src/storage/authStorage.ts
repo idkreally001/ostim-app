@@ -105,5 +105,23 @@ export class AuthStorage {
       return null;
     }
   }
+
+  public static async saveCachedAssignmentDetails(
+    assignmentId: number,
+    details: any
+  ): Promise<void> {
+    await AsyncStorage.setItem(`@ostim_assignment_details_${assignmentId}`, JSON.stringify(details));
+  }
+
+  public static async getCachedAssignmentDetails(assignmentId: number): Promise<any | null> {
+    const raw = await AsyncStorage.getItem(`@ostim_assignment_details_${assignmentId}`);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
 }
+
 

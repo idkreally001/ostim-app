@@ -93,3 +93,20 @@ export interface LmsCachedData {
   lastUpdated: string;
 }
 
+export interface LmsWeekDocument {
+  id?: string | number;
+  title: string;
+  url: string;
+  type: 'pdf' | 'pptx' | 'zip' | 'doc' | 'quiz' | 'turnitin' | 'link' | 'resource';
+  isAttachment?: boolean;
+}
+
+export interface LmsAssignmentDetails {
+  assignmentId: number;
+  sectionName?: string;
+  sectionUrl?: string;
+  attachedFiles: LmsWeekDocument[];
+  weekDocuments: LmsWeekDocument[];
+}
+
+

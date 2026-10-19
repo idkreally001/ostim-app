@@ -134,7 +134,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   const handleQuickFillLms = () => {
-    setSesskey('PCMcci68p5');
+    setSesskey('OsdqwhZWb8');
   };
 
   const openUrl = (url: string) => {
@@ -327,7 +327,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   />
 
                   <TouchableOpacity style={styles.quickFillBtn} onPress={handleQuickFillLms}>
-                    <Text style={styles.quickFillBtnText}>⚡ Son Aktif Sesskey'i Doldur (PCMcci68p5)</Text>
+                    <Text style={styles.quickFillBtnText}>⚡ Son Aktif Sesskey'i Doldur (OsdqwhZWb8)</Text>
                   </TouchableOpacity>
 
                   <View style={styles.lmsActionRow}>

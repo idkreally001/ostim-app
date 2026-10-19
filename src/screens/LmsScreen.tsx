@@ -14,7 +14,13 @@ import {
 } from 'react-native';
 import { lmsClient } from '../api/lmsClient';
 import { AuthStorage } from '../storage/authStorage';
-import { LmsCourseItem, LmsCalendarEvent, LmsSessionData } from '../types/models';
+import {
+  LmsCourseItem,
+  LmsCalendarEvent,
+  LmsSessionData,
+  LmsAssignmentDetails,
+  LmsWeekDocument,
+} from '../types/models';
 import { logService } from '../services/logService';
 
 interface LmsScreenProps {
@@ -37,6 +43,59 @@ export const LmsScreen: React.FC<LmsScreenProps> = ({ onSessionChange }) => {
   const [courses, setCourses] = useState<LmsCourseItem[]>([]);
   const [events, setEvents] = useState<LmsCalendarEvent[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  // Week documents & assignment details state
+  const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
+  const [eventDetails, setEventDetails] = useState<Record<number, LmsAssignmentDetails>>({
+    9901: {
+      assignmentId: 9901,
+      sectionName: '19 October - 25 October',
+      sectionUrl: 'https://lmsclus.ostimteknik.edu.tr/course/section.php?id=14487',
+      attachedFiles: [
+        {
+          title: 'Computer Networks Wireshark Assignment.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/pluginfile.php/18535/mod_assign/introattachment/0/Computer%20Networks%20Wireshark%20Assignment.pdf?forcedownload=1',
+          type: 'pdf',
+          isAttachment: true,
+        },
+      ],
+      weekDocuments: [
+        {
+          title: 'Basic Networks Info-2',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=1920',
+          type: 'pptx',
+          isAttachment: false,
+        },
+      ],
+    },
+    9902: {
+      assignmentId: 9902,
+      sectionName: 'Week: 5 October - 11 October',
+      sectionUrl: 'https://lmsclus.ostimteknik.edu.tr/course/section.php?id=14415',
+      attachedFiles: [],
+      weekDocuments: [
+        {
+          title: 'Assignment 0a: Lab 0 Report (PDF) Submission',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/turnitintooltwo/view.php?id=3260',
+          type: 'turnitin',
+          isAttachment: false,
+        },
+        {
+          title: 'Secure Exam – Practice Quiz',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/quiz/view.php?id=4344',
+          type: 'quiz',
+          isAttachment: false,
+        },
+        {
+          title: 'Secure Exam – Device Preparation and User Guide',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/page/view.php?id=4345',
+          type: 'doc',
+          isAttachment: false,
+        },
+      ],
+    },
+  });
+  const [loadingDetailsId, setLoadingDetailsId] = useState<number | null>(null);
 
   // Connect modal state
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -174,8 +233,62 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
   };
 
   const handleQuickFill = () => {
-    setInputSesskey('PCMcci68p5');
+    setInputSesskey('OsdqwhZWb8');
   };
+
+  const toggleExpandEvent = async (event: LmsCalendarEvent) => {
+    if (expandedEventId === event.id) {
+      setExpandedEventId(null);
+      return;
+    }
+
+    setExpandedEventId(event.id);
+
+    // If already loaded in state with week docs, no need to refetch
+    if (eventDetails[event.id]?.weekDocuments?.length > 0 || eventDetails[event.id]?.attachedFiles?.length > 0) {
+      return;
+    }
+
+    const cached = await AuthStorage.getCachedAssignmentDetails(event.id);
+    if (cached) {
+      setEventDetails((prev) => ({ ...prev, [event.id]: cached }));
+    }
+
+    if (event.actionUrl) {
+      setLoadingDetailsId(event.id);
+      try {
+        const details = await lmsClient.getAssignmentDetails(event.id, event.actionUrl);
+        setEventDetails((prev) => ({ ...prev, [event.id]: details }));
+        await AuthStorage.saveCachedAssignmentDetails(event.id, details);
+      } catch (err: any) {
+        logService.warn('LmsScreen', 'Could not fetch assignment details', err.message);
+      } finally {
+        setLoadingDetailsId(null);
+      }
+    }
+  };
+
+  const getFileIcon = (type?: string): string => {
+    switch (type) {
+      case 'pdf':
+        return '📄';
+      case 'pptx':
+        return '📊';
+      case 'zip':
+        return '📦';
+      case 'doc':
+        return '📝';
+      case 'turnitin':
+        return '🛡️';
+      case 'quiz':
+        return '⏱️';
+      case 'link':
+        return '🔗';
+      default:
+        return '📁';
+    }
+  };
+
 
 
   const syncData = async (sessionOverride?: LmsSessionData) => {
@@ -524,11 +637,28 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
                     badgeLabel = 'Yarın!';
                   }
 
+                  const isExpanded = expandedEventId === event.id;
+                  const details = eventDetails[event.id];
+                  const isLoadingDocs = loadingDetailsId === event.id;
+                  const isTurnitin =
+                    event.name.toLowerCase().includes('turnitin') ||
+                    (event.description || '').toLowerCase().includes('turnitin') ||
+                    details?.weekDocuments?.some((d) => d.type === 'turnitin');
+
+                  const turnitinDoc = details?.weekDocuments?.find((d) => d.type === 'turnitin');
+
                   return (
                     <View key={event.id} style={styles.eventCard}>
                       <View style={styles.eventCardHeader}>
-                        <View style={styles.courseTagBadge}>
-                          <Text style={styles.courseTagText}>{event.courseCode}</Text>
+                        <View style={styles.courseTagRow}>
+                          <View style={styles.courseTagBadge}>
+                            <Text style={styles.courseTagText}>{event.courseCode}</Text>
+                          </View>
+                          {isTurnitin ? (
+                            <View style={styles.turnitinBadge}>
+                              <Text style={styles.turnitinBadgeText}>🛡️ Turnitin</Text>
+                            </View>
+                          ) : null}
                         </View>
                         <View style={[styles.badgeBase, badgeStyle]}>
                           <Text style={[styles.badgeTextBase, badgeTextStyle]}>
@@ -546,6 +676,7 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
                         </Text>
                       ) : null}
 
+                      {/* Main Actions Bar */}
                       <View style={styles.eventCardFooter}>
                         <View style={styles.dateTimeContainer}>
                           <Text style={styles.dateTimeText}>
@@ -553,20 +684,125 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
                           </Text>
                         </View>
 
-                        {event.actionUrl ? (
-                          <TouchableOpacity
-                            style={[
-                              styles.actionBtn,
-                              event.isOverdue && styles.actionBtnOverdue,
-                            ]}
-                            onPress={() => openUrl(event.actionUrl)}
-                          >
-                            <Text style={styles.actionBtnText}>
-                              {event.actionName || 'Teslim Et'} ↗
-                            </Text>
-                          </TouchableOpacity>
-                        ) : null}
+                        <View style={styles.actionButtonsGroup}>
+                          {/* Dedicated Turnitin Submission Button to bypass Moodle permission error */}
+                          {isTurnitin ? (
+                            <TouchableOpacity
+                              style={styles.turnitinActionBtn}
+                              onPress={() => openUrl(turnitinDoc ? turnitinDoc.url : event.actionUrl)}
+                            >
+                              <Text style={styles.turnitinActionBtnText}>🛡️ Turnitin Teslimi ↗</Text>
+                            </TouchableOpacity>
+                          ) : null}
+
+                          {event.actionUrl ? (
+                            <TouchableOpacity
+                              style={[
+                                styles.actionBtn,
+                                event.isOverdue && styles.actionBtnOverdue,
+                              ]}
+                              onPress={() => openUrl(event.actionUrl)}
+                            >
+                              <Text style={styles.actionBtnText}>
+                                {event.actionName || 'Teslim Sayfası'} ↗
+                              </Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
                       </View>
+
+                      {/* Expand/Collapse Week Documents Button */}
+                      <TouchableOpacity
+                        style={styles.expandDocsToggleBtn}
+                        onPress={() => toggleExpandEvent(event)}
+                      >
+                        <Text style={styles.expandDocsToggleText}>
+                          {isExpanded
+                            ? '▲ İlgili Hafta ve Materyalleri Gizle'
+                            : '📂 İlgili Hafta ve Materyalleri Gör ▼'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Expanded Section & Week Documents */}
+                      {isExpanded ? (
+                        <View style={styles.expandedDocsContainer}>
+                          {isLoadingDocs ? (
+                            <View style={styles.docsLoadingRow}>
+                              <ActivityIndicator size="small" color="#38bdf8" />
+                              <Text style={styles.docsLoadingText}>Haftalık dokümanlar taranıyor...</Text>
+                            </View>
+                          ) : details ? (
+                            <View>
+                              {details.sectionName ? (
+                                <View style={styles.weekHeaderBox}>
+                                  <Text style={styles.weekHeaderTitle}>📌 Hafta: {details.sectionName}</Text>
+                                  {details.sectionUrl ? (
+                                    <TouchableOpacity onPress={() => openUrl(details.sectionUrl)}>
+                                      <Text style={styles.weekHeaderLink}>Tüm Haftayı Aç ↗</Text>
+                                    </TouchableOpacity>
+                                  ) : null}
+                                </View>
+                              ) : null}
+
+                              {/* Attached Assignment Files (PDF, ZIP, Word) */}
+                              {details.attachedFiles && details.attachedFiles.length > 0 ? (
+                                <View style={styles.docsSectionGroup}>
+                                  <Text style={styles.docsGroupTitle}>📎 Ekli Ödev Dosyaları & Kılavuzlar:</Text>
+                                  {details.attachedFiles.map((file, idx) => (
+                                    <TouchableOpacity
+                                      key={`att-${idx}`}
+                                      style={styles.docItemCard}
+                                      onPress={() => openUrl(file.url)}
+                                    >
+                                      <Text style={styles.docItemIcon}>{getFileIcon(file.type)}</Text>
+                                      <View style={styles.docItemInfo}>
+                                        <Text style={styles.docItemTitle}>{file.title}</Text>
+                                        <Text style={styles.docItemSub}>İndir veya Görüntüle ↗</Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              ) : null}
+
+                              {/* Other Week Documents (Slides, Reading, Turnitin, Quizzes) */}
+                              {details.weekDocuments && details.weekDocuments.length > 0 ? (
+                                <View style={styles.docsSectionGroup}>
+                                  <Text style={styles.docsGroupTitle}>📚 Bu Haftanın Diğer Kaynakları:</Text>
+                                  {details.weekDocuments.map((doc, idx) => (
+                                    <TouchableOpacity
+                                      key={`week-${idx}`}
+                                      style={[
+                                        styles.docItemCard,
+                                        doc.type === 'turnitin' && styles.docItemTurnitinCard,
+                                      ]}
+                                      onPress={() => openUrl(doc.url)}
+                                    >
+                                      <Text style={styles.docItemIcon}>{getFileIcon(doc.type)}</Text>
+                                      <View style={styles.docItemInfo}>
+                                        <Text style={styles.docItemTitle}>{doc.title}</Text>
+                                        <Text style={styles.docItemSub}>
+                                          {doc.type === 'turnitin'
+                                            ? 'Turnitin Teslim Ekranı ↗'
+                                            : doc.type === 'quiz'
+                                            ? 'Sınav / Test ↗'
+                                            : 'Materyali Aç ↗'}
+                                        </Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              ) : null}
+
+                              {(!details.attachedFiles || details.attachedFiles.length === 0) &&
+                              (!details.weekDocuments || details.weekDocuments.length === 0) ? (
+                                <Text style={styles.noDocsText}>Bu hafta için ek doküman bulunamadı.</Text>
+                              ) : null}
+                            </View>
+                          ) : (
+                            <Text style={styles.noDocsText}>Dokümanlar yüklenemedi.</Text>
+                          )}
+                        </View>
+                      ) : null}
                     </View>
                   );
                 })
@@ -1010,6 +1246,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  courseTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   courseTagBadge: {
     backgroundColor: '#334155',
     paddingHorizontal: 8,
@@ -1018,6 +1259,17 @@ const styles = StyleSheet.create({
   },
   courseTagText: {
     color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  turnitinBadge: {
+    backgroundColor: '#581c87',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  turnitinBadgeText: {
+    color: '#e9d5ff',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1088,6 +1340,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  actionButtonsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  turnitinActionBtn: {
+    backgroundColor: '#7e22ce',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  turnitinActionBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   actionBtn: {
     backgroundColor: '#2563eb',
     paddingVertical: 6,
@@ -1101,6 +1369,104 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  expandDocsToggleBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  expandDocsToggleText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  expandedDocsContainer: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1e3a8a',
+  },
+  weekHeaderBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+  },
+  weekHeaderTitle: {
+    color: '#38bdf8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  weekHeaderLink: {
+    color: '#60a5fa',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  docsSectionGroup: {
+    marginBottom: 10,
+  },
+  docsGroupTitle: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  docItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  docItemTurnitinCard: {
+    borderColor: '#7e22ce',
+    backgroundColor: '#2e1065',
+  },
+  docItemIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  docItemInfo: {
+    flex: 1,
+  },
+  docItemTitle: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  docItemSub: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  docsLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  docsLoadingText: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  noDocsText: {
+    color: '#64748b',
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 8,
   },
   courseCard: {
     backgroundColor: '#1e293b',
