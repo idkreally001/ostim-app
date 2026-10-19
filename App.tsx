@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
+  Modal,
+  Platform,
+  StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AuthStorage } from './src/storage/authStorage';
@@ -14,6 +16,7 @@ import { obsClient } from './src/api/obsClient';
 import { lmsClient } from './src/api/lmsClient';
 import { configManager } from './src/config/configManager';
 import { logService } from './src/services/logService';
+import { AppAlert } from './src/utils/alertHelper';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { TimetableScreen } from './src/screens/TimetableScreen';
@@ -31,6 +34,7 @@ export default function App() {
 
   const [isObsAuthenticated, setIsObsAuthenticated] = useState(false);
   const [isLmsAuthenticated, setIsLmsAuthenticated] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const [obsTab, setObsTab] = useState<ObsTab>('dashboard');
 
@@ -85,7 +89,7 @@ export default function App() {
       setTapCount(nextCount);
       if (nextCount >= 5 && !devUnlocked) {
         setDevUnlocked(true);
-        Alert.alert('Geliştirici Modu Açıldı', 'Hata ve sistem günlükleri sekmesi aktif edildi.');
+        AppAlert.alert('Geliştirici Modu Açıldı', 'Hata ve sistem günlükleri sekmesi aktif edildi.');
       }
     } else {
       setTapCount(1);
@@ -94,41 +98,60 @@ export default function App() {
   };
 
   const handleObsLogout = async () => {
-    Alert.alert(
-      'OBS Çıkışı',
+    AppAlert.confirm(
+      'OBS Oturumunu Kapat',
       'Öğrenci Bilgi Sistemi (OBS) oturumunuzu kapatmak istiyor musunuz? (LMS oturumunuz açık kalacaktır)',
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Çıkış Yap',
-          style: 'destructive',
-          onPress: async () => {
-            await AuthStorage.clearSession();
-            setIsObsAuthenticated(false);
-            setObsTab('dashboard');
-            setDevUnlocked(false);
-          },
-        },
-      ]
+      async () => {
+        await AuthStorage.clearSession();
+        obsClient.clearTokens();
+        setIsObsAuthenticated(false);
+        setObsTab('dashboard');
+        setDevUnlocked(false);
+        if (isLmsAuthenticated) {
+          setActivePortal('lms');
+        }
+      },
+      undefined,
+      'Çıkış Yap',
+      'İptal'
     );
   };
 
   const handleLmsLogout = async () => {
-    Alert.alert(
-      'LMS Çıkışı',
+    AppAlert.confirm(
+      'LMS Oturumunu Kapat',
       'Moodle LMS oturumunuzu kapatmak istiyor musunuz? (OBS oturumunuz açık kalacaktır)',
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Çıkış Yap',
-          style: 'destructive',
-          onPress: async () => {
-            await AuthStorage.clearLmsSession();
-            lmsClient.clearSession();
-            setIsLmsAuthenticated(false);
-          },
-        },
-      ]
+      async () => {
+        await AuthStorage.clearLmsSession();
+        lmsClient.clearSession();
+        setIsLmsAuthenticated(false);
+        if (isObsAuthenticated) {
+          setActivePortal('obs');
+        }
+      },
+      undefined,
+      'Çıkış Yap',
+      'İptal'
+    );
+  };
+
+  const handleFullLogout = async () => {
+    AppAlert.confirm(
+      'Tüm Oturumları Kapat',
+      'Hem OBS hem de LMS oturumlarınızı kapatıp ana giriş ekranına dönmek istiyor musunuz?',
+      async () => {
+        await Promise.all([AuthStorage.clearSession(), AuthStorage.clearLmsSession()]);
+        obsClient.clearTokens();
+        lmsClient.clearSession();
+        setIsObsAuthenticated(false);
+        setIsLmsAuthenticated(false);
+        setObsTab('dashboard');
+        setDevUnlocked(false);
+        setActivePortal('obs');
+      },
+      undefined,
+      'Tam Çıkış Yap',
+      'İptal'
     );
   };
 
@@ -144,7 +167,7 @@ export default function App() {
   // Neither portal is authenticated -> Show full login screen
   if (!isObsAuthenticated && !isLmsAuthenticated) {
     return (
-      <>
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar style="light" />
         <LoginScreen
           initialPortal={activePortal}
@@ -160,7 +183,7 @@ export default function App() {
           }}
           onContinueToPortal={(p) => setActivePortal(p)}
         />
-      </>
+      </SafeAreaView>
     );
   }
 
@@ -242,9 +265,19 @@ export default function App() {
         {isCurrentPortalAuthed ? (
           <TouchableOpacity
             style={styles.logoutBtn}
-            onPress={activePortal === 'obs' ? handleObsLogout : handleLmsLogout}
+            onPress={() => {
+              if (isObsAuthenticated && isLmsAuthenticated) {
+                setShowLogoutModal(true);
+              } else if (activePortal === 'obs') {
+                handleObsLogout();
+              } else {
+                handleLmsLogout();
+              }
+            }}
           >
-            <Text style={styles.logoutBtnText}>Çıkış</Text>
+            <Text style={styles.logoutBtnText}>
+              🚪 {activePortal === 'obs' ? 'OBS Çıkış' : 'LMS Çıkış'}
+            </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.headerRightPlaceholder} />
@@ -356,6 +389,80 @@ export default function App() {
           ) : null}
         </View>
       ) : null}
+
+      {/* Multi-Portal Logout Modal */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <View style={styles.logoutModalCard}>
+            <View style={styles.logoutModalHeader}>
+              <Text style={styles.logoutModalTitle}>🚪 Oturum Yönetimi</Text>
+              <TouchableOpacity onPress={() => setShowLogoutModal(false)}>
+                <Text style={styles.logoutModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.logoutModalSub}>
+              Hangi oturumunuzu kapatmak istiyorsunuz?
+            </Text>
+
+            <TouchableOpacity
+              style={styles.logoutOptionCard}
+              onPress={() => {
+                setShowLogoutModal(false);
+                handleObsLogout();
+              }}
+            >
+              <Text style={styles.logoutOptionIcon}>🎓</Text>
+              <View style={styles.logoutOptionInfo}>
+                <Text style={styles.logoutOptionTitle}>Sadece OBS'den Çıkış Yap</Text>
+                <Text style={styles.logoutOptionDesc}>LMS (Moodle) oturumunuz açık kalır.</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutOptionCard}
+              onPress={() => {
+                setShowLogoutModal(false);
+                handleLmsLogout();
+              }}
+            >
+              <Text style={styles.logoutOptionIcon}>📚</Text>
+              <View style={styles.logoutOptionInfo}>
+                <Text style={styles.logoutOptionTitle}>Sadece LMS'den Çıkış Yap</Text>
+                <Text style={styles.logoutOptionDesc}>OBS oturumunuz açık kalır.</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.logoutOptionCard, styles.logoutFullCard]}
+              onPress={() => {
+                setShowLogoutModal(false);
+                handleFullLogout();
+              }}
+            >
+              <Text style={styles.logoutOptionIcon}>🛑</Text>
+              <View style={styles.logoutOptionInfo}>
+                <Text style={[styles.logoutOptionTitle, styles.logoutFullTitle]}>
+                  Tüm Oturumları Kapat (Tam Çıkış)
+                </Text>
+                <Text style={styles.logoutOptionDesc}>Her iki sistemden de tamamen çıkış yapılır.</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutCancelBtn}
+              onPress={() => setShowLogoutModal(false)}
+            >
+              <Text style={styles.logoutCancelBtnText}>Vazgeç</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -364,6 +471,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#090d16',
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 28) : 0,
   },
   splashContainer: {
     flex: 1,
@@ -504,5 +612,86 @@ const styles = StyleSheet.create({
   activeNavLabel: {
     color: '#38bdf8',
     fontWeight: '700',
+  },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  logoutModalCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  logoutModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  logoutModalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  logoutModalClose: {
+    color: '#94a3b8',
+    fontSize: 18,
+    padding: 4,
+  },
+  logoutModalSub: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  logoutOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  logoutOptionIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  logoutOptionInfo: {
+    flex: 1,
+  },
+  logoutOptionTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  logoutOptionDesc: {
+    color: '#64748b',
+    fontSize: 11,
+  },
+  logoutFullCard: {
+    borderColor: '#7f1d1d',
+    backgroundColor: '#200e12',
+  },
+  logoutFullTitle: {
+    color: '#f87171',
+  },
+  logoutCancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  logoutCancelBtnText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

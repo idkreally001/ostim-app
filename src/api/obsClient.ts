@@ -33,6 +33,11 @@ export class OstimObsClient {
     this.studentNo = studentNo;
   }
 
+  public clearTokens() {
+    this.jwtToken = null;
+    this.studentNo = null;
+  }
+
   public isAuthenticated(): boolean {
     return !!this.jwtToken && !!this.studentNo;
   }

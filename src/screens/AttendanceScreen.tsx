@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
+import { AuthStorage } from '../storage/authStorage';
 import { AttendanceEntry } from '../types/models';
 
 export const AttendanceScreen: React.FC = () => {
@@ -15,10 +16,21 @@ export const AttendanceScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadAttendance = async () => {
+  const loadAttendance = async (isPullToRefresh = false) => {
+    if (!isPullToRefresh) {
+      const cached = await AuthStorage.getCachedAttendance();
+      if (cached && cached.length > 0) {
+        setAttendance(cached);
+        setLoading(false);
+      }
+    }
     try {
+      if (isPullToRefresh) setRefreshing(true);
       const data = await obsClient.getAttendance();
-      setAttendance(data);
+      if (data && data.length > 0) {
+        setAttendance(data);
+        await AuthStorage.saveCachedAttendance(data);
+      }
     } catch (err: any) {
       console.warn('Failed to load attendance:', err.message);
     } finally {

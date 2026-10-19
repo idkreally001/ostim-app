@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
+import { AuthStorage } from '../storage/authStorage';
 import { GradeEntry, SemesterTerm } from '../types/models';
 
 export const GradesScreen: React.FC = () => {
@@ -20,17 +21,40 @@ export const GradesScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [simulatedFinals, setSimulatedFinals] = useState<Record<string, string>>({});
 
-  const loadTermsAndGrades = async () => {
+  const loadTermsAndGrades = async (isPullToRefresh = false) => {
+    if (!isPullToRefresh) {
+      // Load cached terms and active grades
+      const cachedTerms = await AuthStorage.getCachedTerms();
+      if (cachedTerms && cachedTerms.length > 0) {
+        setTerms(cachedTerms);
+        const active = cachedTerms.find((t) => t.isActive);
+        const targetTermId = active ? active.termId : cachedTerms[0]?.termId;
+        setSelectedTermId(targetTermId);
+        if (targetTermId) {
+          const cachedGrades = await AuthStorage.getCachedGrades(targetTermId);
+          if (cachedGrades && cachedGrades.length > 0) {
+            setGrades(cachedGrades);
+            setLoading(false);
+          }
+        }
+      }
+    }
+
     try {
+      if (isPullToRefresh) setRefreshing(true);
       const termList = await obsClient.getTerms();
       setTerms(termList);
+      await AuthStorage.saveCachedTerms(termList);
 
       const active = termList.find((t) => t.isActive);
       const targetTermId = active ? active.termId : termList[0]?.termId;
       setSelectedTermId(targetTermId);
 
-      const gradeList = await obsClient.getGrades(targetTermId);
-      setGrades(gradeList);
+      if (targetTermId) {
+        const gradeList = await obsClient.getGrades(targetTermId);
+        setGrades(gradeList);
+        await AuthStorage.saveCachedGrades(targetTermId, gradeList);
+      }
     } catch (err: any) {
       console.warn('Failed to fetch grades:', err.message);
     } finally {
@@ -41,10 +65,17 @@ export const GradesScreen: React.FC = () => {
 
   const handleTermChange = async (termId: number) => {
     setSelectedTermId(termId);
-    setLoading(true);
+    // Check cached first
+    const cachedGrades = await AuthStorage.getCachedGrades(termId);
+    if (cachedGrades && cachedGrades.length > 0) {
+      setGrades(cachedGrades);
+    } else {
+      setLoading(true);
+    }
     try {
       const list = await obsClient.getGrades(termId);
       setGrades(list);
+      await AuthStorage.saveCachedGrades(termId, list);
     } catch (err: any) {
       console.warn('Failed to load grades for term:', err.message);
     } finally {

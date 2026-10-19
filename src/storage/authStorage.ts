@@ -1,10 +1,23 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StudentProfile, LmsSessionData, LmsCachedData, LmsCourseSection } from '../types/models';
+import {
+  StudentProfile,
+  LmsSessionData,
+  LmsCachedData,
+  LmsCourseSection,
+  TimetableEntry,
+  GradeEntry,
+  SemesterTerm,
+  AttendanceEntry,
+} from '../types/models';
 
 const KEY_JWT = 'ostim_auth_jwt_token';
 const KEY_STUDENT_NO = 'ostim_auth_student_no';
 const KEY_CACHED_PROFILE = '@ostim_cached_profile';
+const KEY_CACHED_TIMETABLE = '@ostim_cached_timetable';
+const KEY_CACHED_TERMS = '@ostim_cached_terms';
+const KEY_CACHED_ATTENDANCE = '@ostim_cached_attendance';
+const KEY_PREFIX_GRADES = '@ostim_cached_grades_';
 
 const KEY_LMS_SESSION = 'ostim_lms_session_data';
 const KEY_CACHED_LMS_DATA = '@ostim_cached_lms_data';
@@ -41,6 +54,9 @@ export class AuthStorage {
     await AsyncStorage.removeItem(KEY_JWT);
     await AsyncStorage.removeItem(KEY_STUDENT_NO);
     await AsyncStorage.removeItem(KEY_CACHED_PROFILE);
+    await AsyncStorage.removeItem(KEY_CACHED_TIMETABLE);
+    await AsyncStorage.removeItem(KEY_CACHED_TERMS);
+    await AsyncStorage.removeItem(KEY_CACHED_ATTENDANCE);
   }
 
   public static async saveCachedProfile(profile: StudentProfile): Promise<void> {
@@ -49,6 +65,62 @@ export class AuthStorage {
 
   public static async getCachedProfile(): Promise<StudentProfile | null> {
     const raw = await AsyncStorage.getItem(KEY_CACHED_PROFILE);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async saveCachedTimetable(timetable: TimetableEntry[]): Promise<void> {
+    await AsyncStorage.setItem(KEY_CACHED_TIMETABLE, JSON.stringify(timetable));
+  }
+
+  public static async getCachedTimetable(): Promise<TimetableEntry[] | null> {
+    const raw = await AsyncStorage.getItem(KEY_CACHED_TIMETABLE);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async saveCachedTerms(terms: SemesterTerm[]): Promise<void> {
+    await AsyncStorage.setItem(KEY_CACHED_TERMS, JSON.stringify(terms));
+  }
+
+  public static async getCachedTerms(): Promise<SemesterTerm[] | null> {
+    const raw = await AsyncStorage.getItem(KEY_CACHED_TERMS);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async saveCachedGrades(termId: number | string, grades: GradeEntry[]): Promise<void> {
+    await AsyncStorage.setItem(`${KEY_PREFIX_GRADES}${termId}`, JSON.stringify(grades));
+  }
+
+  public static async getCachedGrades(termId: number | string): Promise<GradeEntry[] | null> {
+    const raw = await AsyncStorage.getItem(`${KEY_PREFIX_GRADES}${termId}`);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async saveCachedAttendance(attendance: AttendanceEntry[]): Promise<void> {
+    await AsyncStorage.setItem(KEY_CACHED_ATTENDANCE, JSON.stringify(attendance));
+  }
+
+  public static async getCachedAttendance(): Promise<AttendanceEntry[] | null> {
+    const raw = await AsyncStorage.getItem(KEY_CACHED_ATTENDANCE);
     if (!raw) return null;
     try {
       return JSON.parse(raw);

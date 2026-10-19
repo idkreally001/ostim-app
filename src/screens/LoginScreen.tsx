@@ -17,6 +17,7 @@ import { obsClient } from '../api/obsClient';
 import { lmsClient } from '../api/lmsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { configManager } from '../config/configManager';
+import { AppAlert } from '../utils/alertHelper';
 import { LmsSessionData } from '../types/models';
 
 interface LoginScreenProps {
@@ -53,7 +54,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // OBS Login Action
   const handleObsLogin = async () => {
     if (!studentNo.trim() || !password.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen öğrenci numarası ve OBS şifrenizi giriniz.');
+      AppAlert.alert('Eksik Bilgi', 'Lütfen öğrenci numarası ve OBS şifrenizi giriniz.');
       return;
     }
 
@@ -69,7 +70,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       onObsLoginSuccess();
     } catch (err: any) {
-      Alert.alert('OBS Girişi Başarısız', err.message || 'Öğrenci numarası veya şifre hatalı.');
+      AppAlert.alert('OBS Girişi Başarısız', err.message || 'Öğrenci numarası veya şifre hatalı.');
     } finally {
       setObsLoading(false);
     }
@@ -81,12 +82,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     let cleanCookie = moodleCookie.trim();
 
     if (!cleanSesskey) {
-      Alert.alert('Eksik Bilgi', 'Lütfen Moodle sesskey değerini giriniz.');
+      AppAlert.alert('Eksik Bilgi', 'Lütfen Moodle sesskey değerini giriniz.');
       return;
     }
 
     if (!cleanCookie) {
-      Alert.alert('Eksik Bilgi', 'Lütfen MoodleSession çerez değerini giriniz.');
+      AppAlert.alert('Eksik Bilgi', 'Lütfen MoodleSession çerez değerini giriniz.');
       return;
     }
 
@@ -127,7 +128,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       onLmsLoginSuccess();
     } catch (err: any) {
       lmsClient.clearSession();
-      Alert.alert('LMS Bağlantı Hatası', err.message || 'Moodle oturumu doğrulanamadı.');
+      AppAlert.alert('LMS Bağlantı Hatası', err.message || 'Moodle oturumu doğrulanamadı.');
     } finally {
       setLmsLoading(false);
     }
@@ -138,7 +139,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   const openUrl = (url: string) => {
-    Linking.openURL(url).catch(() => Alert.alert('Hata', 'Bağlantı açılamadı.'));
+    Linking.openURL(url).catch(() => AppAlert.alert('Hata', 'Bağlantı açılamadı.'));
   };
 
   return (

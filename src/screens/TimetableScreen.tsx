@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
-  Alert,
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
+import { AuthStorage } from '../storage/authStorage';
+import { AppAlert } from '../utils/alertHelper';
 import { TimetableEntry } from '../types/models';
 
 const DAYS = [
@@ -23,6 +24,7 @@ const DAYS = [
 
 export const TimetableScreen: React.FC = () => {
   const [schedule, setSchedule] = useState<TimetableEntry[]>([]);
+  const [isOffline, setIsOffline] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(() => {
     const day = new Date().getDay(); // 1=Mon ... 5=Fri
     return day >= 1 && day <= 5 ? day - 1 : 0;
@@ -30,12 +32,27 @@ export const TimetableScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTimetable = async () => {
+  const fetchTimetable = async (isPullToRefresh = false) => {
+    if (!isPullToRefresh) {
+      // 1. Instant offline cache load
+      const cached = await AuthStorage.getCachedTimetable();
+      if (cached && cached.length > 0) {
+        setSchedule(cached);
+        setLoading(false);
+      }
+    }
+
     try {
+      if (isPullToRefresh) setRefreshing(true);
       const data = await obsClient.getTimetable();
-      setSchedule(data);
+      if (data && data.length > 0) {
+        setSchedule(data);
+        setIsOffline(false);
+        await AuthStorage.saveCachedTimetable(data);
+      }
     } catch (err: any) {
       console.warn('Failed to load timetable:', err.message);
+      setIsOffline(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,7 +65,7 @@ export const TimetableScreen: React.FC = () => {
 
   const exportCsv = () => {
     if (schedule.length === 0) {
-      Alert.alert('Bilgi', 'Dışa aktarılacak ders bulunamadı.');
+      AppAlert.alert('Bilgi', 'Dışa aktarılacak ders bulunamadı.');
       return;
     }
 
@@ -85,7 +102,7 @@ export const TimetableScreen: React.FC = () => {
       link.click();
       document.body.removeChild(link);
     } else {
-      Alert.alert('CSV Hazırlandı', 'Ders programı CSV formatına dönüştürüldü.');
+      AppAlert.alert('CSV Hazırlandı', 'Ders programı CSV formatına dönüştürüldü.');
     }
   };
 
@@ -118,6 +135,13 @@ export const TimetableScreen: React.FC = () => {
           <Text style={styles.exportBtnText}>📥 CSV</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Offline Mode Banner */}
+      {isOffline && schedule.length > 0 ? (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>⚡ Çevrimdışı Mod (Önbellekten Yüklendi)</Text>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.centerContainer}>
@@ -322,5 +346,21 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: '#64748b',
     fontSize: 13,
+  },
+  offlineBanner: {
+    backgroundColor: '#1e3a8a',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    color: '#bfdbfe',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

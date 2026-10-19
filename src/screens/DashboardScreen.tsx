@@ -30,10 +30,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   const loadData = async () => {
     try {
       // 1. Try local cache first for instant render
-      const cached = await AuthStorage.getCachedProfile();
+      const [cached, cachedTimetable] = await Promise.all([
+        AuthStorage.getCachedProfile(),
+        AuthStorage.getCachedTimetable(),
+      ]);
       if (cached && cached.firstName) {
         setProfile(cached);
         setLoading(false);
+      }
+      if (cachedTimetable && cachedTimetable.length > 0) {
+        findNextClass(cachedTimetable);
       }
 
       // 2. Fetch fresh profile and timetable
@@ -43,6 +49,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
 
       const timetable = await obsClient.getTimetable();
       findNextClass(timetable);
+      if (timetable && timetable.length > 0) {
+        await AuthStorage.saveCachedTimetable(timetable);
+      }
 
       // 3. Fetch campus weather
       weatherService.getCurrentWeather().then(setCurrentWeather);

@@ -24,6 +24,7 @@ import {
   LmsSectionActivity,
 } from '../types/models';
 import { logService } from '../services/logService';
+import { AppAlert } from '../utils/alertHelper';
 
 interface LmsScreenProps {
   onSessionChange?: (connected: boolean) => void;
@@ -664,7 +665,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
       logService.error('LmsScreen', 'Sync error', err.message);
       // If error indicates invalid sesskey, inform user
       if (err.message?.includes('sesskey') || err.message?.includes('oturum')) {
-        Alert.alert(
+        AppAlert.alert(
           'Oturum Süresi Doldu',
           'LMS oturumunuzun süresi dolmuş olabilir. Lütfen Moodle oturumunu yenileyin.'
         );
@@ -720,7 +721,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
       // Pull fresh data
       await syncData(sessionData);
 
-      Alert.alert('Bağlantı Başarılı', `${testResult.courseCount} ders başarıyla senkronize edildi.`);
+      AppAlert.alert('Bağlantı Başarılı', `${testResult.courseCount} ders başarıyla senkronize edildi.`);
     } catch (err: any) {
       setConnectError(err.message || 'Moodle sunucusuna bağlanılamadı.');
       lmsClient.clearSession();
@@ -730,30 +731,26 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
   };
 
   const handleDisconnect = async () => {
-    Alert.alert(
-      'LMS Bağlantısını Kes',
+    AppAlert.confirm(
+      'LMS Oturumunu Kapat',
       'Moodle LMS oturumunuzu kapatmak istiyor musunuz? (OBS oturumunuz bundan etkilenmez)',
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Bağlantıyı Kes',
-          style: 'destructive',
-          onPress: async () => {
-            await AuthStorage.clearLmsSession();
-            lmsClient.clearSession();
-            updateConnectedState(false);
-            setCourses([]);
-            setEvents([]);
-          },
-        },
-      ]
+      async () => {
+        await AuthStorage.clearLmsSession();
+        lmsClient.clearSession();
+        updateConnectedState(false);
+        setCourses([]);
+        setEvents([]);
+      },
+      undefined,
+      'Çıkış Yap',
+      'İptal'
     );
   };
 
   const openUrl = (url?: string) => {
     if (!url) return;
     Linking.openURL(url).catch(() => {
-      Alert.alert('Hata', 'Bağlantı açılamadı.');
+      AppAlert.alert('Hata', 'Bağlantı açılamadı.');
     });
   };
 
@@ -856,7 +853,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                 <Text style={styles.syncBtnText}>{refreshing ? '⏳' : '🔄'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.disconnectBtn} onPress={handleDisconnect}>
-                <Text style={styles.disconnectBtnText}>Bağlantıyı Kes</Text>
+                <Text style={styles.disconnectBtnText}>🚪 Oturumu Kapat</Text>
               </TouchableOpacity>
             </View>
           ) : (
