@@ -20,6 +20,8 @@ import {
   LmsSessionData,
   LmsAssignmentDetails,
   LmsWeekDocument,
+  LmsCourseSection,
+  LmsSectionActivity,
 } from '../types/models';
 import { logService } from '../services/logService';
 
@@ -195,6 +197,272 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
   },
 ];
 
+const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
+  1219: [
+    {
+      index: 1,
+      name: 'Genel & Ders İzlencesi',
+      activityCount: 2,
+      activities: [
+        {
+          title: 'CENG 459 - Cloud Technologies Syllabus & Grading.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121901',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Ders Duyuruları ve Slack/Teams Bağlantısı',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/url/view.php?id=121902',
+          modType: 'url',
+          fileType: 'link',
+        },
+      ],
+    },
+    {
+      index: 2,
+      name: '1. Hafta (22 Eylül - 28 Eylül): Cloud Computing Foundations',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 1 - Introduction to Cloud Computing & NIST Definition.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121903',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Cloud Service Models: IaaS, PaaS, SaaS Overview.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121904',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Week 1 Reading: Berkeley View on Cloud Computing.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121905',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+      ],
+    },
+    {
+      index: 3,
+      name: '2. Hafta (29 Eylül - 5 Ekim): Virtualization Technologies',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 2 - Hypervisors, Type 1 vs Type 2 & KVM.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121906',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Lab 1 Guide - Setting up VirtualBox & Linux Guest.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121907',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Self-Check Quiz: Virtualization Concepts',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/quiz/view.php?id=121908',
+          modType: 'quiz',
+          fileType: 'quiz',
+        },
+      ],
+    },
+    {
+      index: 4,
+      name: '3. Hafta (6 Ekim - 12 Ekim): Containers & Docker Architecture',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 3 - Docker Engine, Namespaces & Cgroups.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121909',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Docker Commands Cheat Sheet & Dockerfile Best Practices.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121910',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Lab 2: Multi-container App with Docker Compose.zip',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121911',
+          modType: 'resource',
+          fileType: 'zip',
+        },
+      ],
+    },
+    {
+      index: 5,
+      name: '4. Hafta (13 Ekim - 19 Ekim): Cloud Networking & Wireshark',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 4 - Virtual Private Clouds (VPC) & Subnets.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121912',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Computer Networks Wireshark Assignment.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/pluginfile.php/18535/mod_assign/introattachment/0/Computer%20Networks%20Wireshark%20Assignment.pdf?forcedownload=1',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Wireshark Assignment (Teslim)',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/assign/view.php?id=1219',
+          modType: 'assign',
+          fileType: 'resource',
+        },
+      ],
+    },
+    {
+      index: 6,
+      name: '5. Hafta (20 Ekim - 26 Ekim): Container Orchestration (Kubernetes)',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 5 - Kubernetes Pods, Deployments & Services.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121913',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Minikube Hands-on Tutorial.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121914',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Assignment 2: Deploying Microservices on K8s',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/assign/view.php?id=121915',
+          modType: 'assign',
+          fileType: 'resource',
+        },
+      ],
+    },
+  ],
+  1213: [
+    {
+      index: 1,
+      name: 'Genel & Ders İzlencesi',
+      activityCount: 2,
+      activities: [
+        {
+          title: 'CENG 427 - Distributed Systems Syllabus.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121301',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Course GitHub Organization Link',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/url/view.php?id=121302',
+          modType: 'url',
+          fileType: 'link',
+        },
+      ],
+    },
+    {
+      index: 2,
+      name: '1. Hafta (22 Eylül - 28 Eylül): Introduction to Distributed Systems',
+      activityCount: 2,
+      activities: [
+        {
+          title: 'Lecture 1 - Distributed Systems Goals & Pitfalls.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121303',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Coulouris Chapter 1 - Characterization of Distributed Systems.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121304',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+      ],
+    },
+    {
+      index: 3,
+      name: '2. Hafta (29 Eylül - 5 Ekim): System Architectures',
+      activityCount: 2,
+      activities: [
+        {
+          title: 'Lecture 2 - Client-Server, P2P & Layered Architectures.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121305',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Architectural Styles Comparison.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121306',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+      ],
+    },
+    {
+      index: 4,
+      name: '3. Hafta (6 Ekim - 12 Ekim): Processes and Virtualization',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 3 - Threads, Servers & Code Migration.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121307',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'Assignment 0a: Lab 0 Report (PDF) Submission (Turnitin)',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/turnitintooltwo/view.php?id=3260',
+          modType: 'turnitin',
+          fileType: 'turnitin',
+        },
+        {
+          title: 'Assignment 0b: Lab 0 – Working Files (ZIP)',
+          url: 'https://lmsclus.ostimteknik.edu.tr/course/view.php?id=1213',
+          modType: 'assign',
+          fileType: 'zip',
+        },
+      ],
+    },
+    {
+      index: 5,
+      name: '4. Hafta (13 Ekim - 19 Ekim): Remote Procedure Calls (RPC)',
+      activityCount: 3,
+      activities: [
+        {
+          title: 'Lecture 4 - RPC, RMI & Message-Oriented Communication.pptx',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121308',
+          modType: 'resource',
+          fileType: 'pptx',
+        },
+        {
+          title: 'gRPC in Python/Go Tutorial.pdf',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/resource/view.php?id=121309',
+          modType: 'resource',
+          fileType: 'pdf',
+        },
+        {
+          title: 'Quiz 1 - Interprocess Communication',
+          url: 'https://lmsclus.ostimteknik.edu.tr/mod/quiz/view.php?id=121310',
+          modType: 'quiz',
+          fileType: 'quiz',
+        },
+      ],
+    },
+  ],
+};
+
+  // Course Content Explorer State
+  const [selectedCourseForContent, setSelectedCourseForContent] = useState<LmsCourseItem | null>(null);
+  const [courseSectionsMap, setCourseSectionsMap] = useState<Record<number, LmsCourseSection[]>>(INITIAL_COURSE_SECTIONS);
+  const [loadingSections, setLoadingSections] = useState(false);
+  const [contentSearchQuery, setContentSearchQuery] = useState('');
+  const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'pdf' | 'pptx' | 'assign' | 'quiz'>('all');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     bootstrapLms();
   }, []);
@@ -284,12 +552,86 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
         return '⏱️';
       case 'link':
         return '🔗';
+      case 'assign':
+        return '⚡';
       default:
         return '📁';
     }
   };
 
+  const getActivityBadge = (act: LmsSectionActivity) => {
+    if (act.modType === 'turnitin' || act.fileType === 'turnitin') {
+      return { label: 'TURNITIN', bg: '#581c87', color: '#e9d5ff' };
+    }
+    if (act.modType === 'assign') {
+      return { label: 'ÖDEV', bg: '#14532d', color: '#86efac' };
+    }
+    if (act.modType === 'quiz' || act.fileType === 'quiz') {
+      return { label: 'TEST / QUIZ', bg: '#7c2d12', color: '#fdba74' };
+    }
+    if (act.fileType === 'pptx') {
+      return { label: 'SLAYT (PPTX)', bg: '#c2410c', color: '#ffedd5' };
+    }
+    if (act.fileType === 'pdf') {
+      return { label: 'PDF BELGE', bg: '#1e3a8a', color: '#bfdbfe' };
+    }
+    if (act.fileType === 'zip') {
+      return { label: 'ARŞİV (ZIP)', bg: '#334155', color: '#cbd5e1' };
+    }
+    if (act.fileType === 'link') {
+      return { label: 'BAĞLANTI', bg: '#0369a1', color: '#bae6fd' };
+    }
+    return { label: 'MATERYAL', bg: '#334155', color: '#94a3b8' };
+  };
 
+  const handleOpenCourseContent = async (course: LmsCourseItem, forceRefresh = false) => {
+    setSelectedCourseForContent(course);
+    setContentSearchQuery('');
+    setContentTypeFilter('all');
+    setCollapsedSections({});
+
+    const cached = await AuthStorage.getCachedCourseSections(course.id);
+    if (cached && cached.length > 0) {
+      setCourseSectionsMap((prev) => ({ ...prev, [course.id]: cached }));
+    }
+
+    if (forceRefresh || (!cached && !courseSectionsMap[course.id])) {
+      setLoadingSections(true);
+      try {
+        const sections = await lmsClient.getCourseSections(course.id);
+        if (sections && sections.length > 0) {
+          setCourseSectionsMap((prev) => ({ ...prev, [course.id]: sections }));
+          await AuthStorage.saveCachedCourseSections(course.id, sections);
+        }
+      } catch (err: any) {
+        logService.warn('LmsScreen', `Could not fetch sections for course ${course.id}`, err.message);
+      } finally {
+        setLoadingSections(false);
+      }
+    }
+  };
+
+  const toggleSectionCollapse = (secKey: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [secKey]: !prev[secKey],
+    }));
+  };
+
+  const toggleAllSections = (sections: LmsCourseSection[]) => {
+    const areAnyCollapsed = sections.some((s) => collapsedSections[`sec-${s.index}`]);
+    if (areAnyCollapsed) {
+      // expand all
+      setCollapsedSections({});
+    } else {
+      // collapse all
+      const allCollapsed: Record<string, boolean> = {};
+      sections.forEach((s) => {
+        allCollapsed[`sec-${s.index}`] = true;
+      });
+      setCollapsedSections(allCollapsed);
+    }
+  };
 
   const syncData = async (sessionOverride?: LmsSessionData) => {
     try {
@@ -422,6 +764,59 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
     return true;
   });
 
+  // Filter sections and their activities based on contentSearchQuery and contentTypeFilter
+  const rawSections = selectedCourseForContent
+    ? courseSectionsMap[selectedCourseForContent.id] || []
+    : [];
+
+  const filteredSections = rawSections
+    .map((sec) => {
+      const filteredActivities = sec.activities.filter((act) => {
+        // Type filter
+        if (contentTypeFilter === 'pdf') {
+          if (act.fileType !== 'pdf') return false;
+        } else if (contentTypeFilter === 'pptx') {
+          if (act.fileType !== 'pptx') return false;
+        } else if (contentTypeFilter === 'assign') {
+          if (act.modType !== 'assign' && act.modType !== 'turnitin' && act.fileType !== 'turnitin') return false;
+        } else if (contentTypeFilter === 'quiz') {
+          if (act.modType !== 'quiz' && act.fileType !== 'quiz') return false;
+        }
+
+        // Search filter
+        if (contentSearchQuery.trim()) {
+          const q = contentSearchQuery.toLowerCase();
+          const matchTitle = act.title.toLowerCase().includes(q);
+          const matchSec = sec.name.toLowerCase().includes(q);
+          return matchTitle || matchSec;
+        }
+
+        return true;
+      });
+
+      return {
+        ...sec,
+        activities: filteredActivities,
+      };
+    })
+    .filter((sec) => {
+      if (contentSearchQuery.trim() || contentTypeFilter !== 'all') {
+        return sec.activities.length > 0;
+      }
+      return true;
+    });
+
+  // Calculate counts for chips
+  const allActivitiesList = rawSections.flatMap((s) => s.activities);
+  const totalActivitiesCount = allActivitiesList.length;
+  const pdfCount = allActivitiesList.filter((a) => a.fileType === 'pdf').length;
+  const pptxCount = allActivitiesList.filter((a) => a.fileType === 'pptx').length;
+  const assignCount = allActivitiesList.filter(
+    (a) => a.modType === 'assign' || a.modType === 'turnitin' || a.fileType === 'turnitin'
+  ).length;
+  const quizCount = allActivitiesList.filter(
+    (a) => a.modType === 'quiz' || a.fileType === 'quiz'
+  ).length;
   const urgentCount = events.filter((e) => !e.isOverdue && e.daysRemaining <= 2).length;
   const overdueCount = events.filter((e) => e.isOverdue).length;
 
@@ -855,6 +1250,18 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
                         <Text style={styles.progressText}>%{course.progress}</Text>
                       </View>
                     ) : null}
+
+                    {/* View Course Content button */}
+                    <View style={styles.courseFooterActions}>
+                      <TouchableOpacity
+                        style={styles.courseViewContentBtn}
+                        onPress={() => handleOpenCourseContent(course)}
+                      >
+                        <Text style={styles.courseViewContentBtnText}>
+                          📂 Tüm Dönem Materyalleri & Slaytlar
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -862,6 +1269,316 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
           )}
         </ScrollView>
       )}
+
+      {/* Course Content Explorer Modal */}
+      <Modal
+        visible={!!selectedCourseForContent}
+        animationType="slide"
+        onRequestClose={() => setSelectedCourseForContent(null)}
+      >
+        {selectedCourseForContent && (
+          <View style={styles.explorerContainer}>
+            {/* Explorer Top Navbar */}
+            <View style={styles.explorerNavbar}>
+              <TouchableOpacity
+                style={styles.explorerBackBtn}
+                onPress={() => setSelectedCourseForContent(null)}
+              >
+                <Text style={styles.explorerBackBtnText}>← Geri</Text>
+              </TouchableOpacity>
+
+              <View style={styles.explorerNavTitleContainer}>
+                <Text style={styles.explorerNavCode} numberOfLines={1}>
+                  {selectedCourseForContent.code}
+                </Text>
+                <Text style={styles.explorerNavTitle} numberOfLines={1}>
+                  Dönem Materyalleri
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.explorerRefreshBtn}
+                onPress={() => handleOpenCourseContent(selectedCourseForContent, true)}
+                disabled={loadingSections}
+              >
+                <Text style={styles.explorerRefreshBtnText}>
+                  {loadingSections ? '⏳' : '🔄'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Course Summary Card */}
+            <View style={styles.explorerCourseCard}>
+              <Text style={styles.explorerCourseFullName}>
+                {selectedCourseForContent.fullname}
+              </Text>
+              <View style={styles.explorerCourseMetaRow}>
+                {selectedCourseForContent.instructor ? (
+                  <View style={styles.explorerInstructorTag}>
+                    <Text style={styles.explorerInstructorIcon}>👨‍🏫</Text>
+                    <Text style={styles.explorerInstructorText}>
+                      {selectedCourseForContent.instructor}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={styles.explorerMoodleWebBtn}
+                  onPress={() => openUrl(selectedCourseForContent.viewurl)}
+                >
+                  <Text style={styles.explorerMoodleWebText}>Moodle Web ↗</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Search Input */}
+            <View style={styles.explorerSearchBox}>
+              <Text style={styles.explorerSearchIcon}>🔍</Text>
+              <TextInput
+                style={styles.explorerSearchInput}
+                placeholder="Dosya, slayt veya hafta adı ara..."
+                placeholderTextColor="#64748b"
+                value={contentSearchQuery}
+                onChangeText={setContentSearchQuery}
+                autoCapitalize="none"
+              />
+              {contentSearchQuery ? (
+                <TouchableOpacity onPress={() => setContentSearchQuery('')}>
+                  <Text style={styles.explorerSearchClear}>✕</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Filter Chips Bar */}
+            <View style={styles.explorerFilterChipsBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsScroll}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.explorerChip,
+                    contentTypeFilter === 'all' && styles.explorerChipActive,
+                  ]}
+                  onPress={() => setContentTypeFilter('all')}
+                >
+                  <Text
+                    style={[
+                      styles.explorerChipText,
+                      contentTypeFilter === 'all' && styles.explorerChipTextActive,
+                    ]}
+                  >
+                    Tümü ({totalActivitiesCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.explorerChip,
+                    contentTypeFilter === 'pdf' && styles.explorerChipActive,
+                  ]}
+                  onPress={() => setContentTypeFilter('pdf')}
+                >
+                  <Text
+                    style={[
+                      styles.explorerChipText,
+                      contentTypeFilter === 'pdf' && styles.explorerChipTextActive,
+                    ]}
+                  >
+                    📄 PDF ({pdfCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.explorerChip,
+                    contentTypeFilter === 'pptx' && styles.explorerChipActive,
+                  ]}
+                  onPress={() => setContentTypeFilter('pptx')}
+                >
+                  <Text
+                    style={[
+                      styles.explorerChipText,
+                      contentTypeFilter === 'pptx' && styles.explorerChipTextActive,
+                    ]}
+                  >
+                    📊 Slaytlar ({pptxCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.explorerChip,
+                    contentTypeFilter === 'assign' && styles.explorerChipActive,
+                  ]}
+                  onPress={() => setContentTypeFilter('assign')}
+                >
+                  <Text
+                    style={[
+                      styles.explorerChipText,
+                      contentTypeFilter === 'assign' && styles.explorerChipTextActive,
+                    ]}
+                  >
+                    ⚡ Ödevler ({assignCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.explorerChip,
+                    contentTypeFilter === 'quiz' && styles.explorerChipActive,
+                  ]}
+                  onPress={() => setContentTypeFilter('quiz')}
+                >
+                  <Text
+                    style={[
+                      styles.explorerChipText,
+                      contentTypeFilter === 'quiz' && styles.explorerChipTextActive,
+                    ]}
+                  >
+                    ⏱️ Quiz ({quizCount})
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+
+            {/* Section Stats & Collapse Toggle Header */}
+            <View style={styles.explorerStatsBar}>
+              <Text style={styles.explorerStatsText}>
+                {filteredSections.length} Hafta / Bölüm • {filteredSections.reduce((acc, s) => acc + s.activities.length, 0)} Materyal
+              </Text>
+              <TouchableOpacity onPress={() => toggleAllSections(filteredSections)}>
+                <Text style={styles.explorerToggleAllText}>
+                  {filteredSections.some((s) => collapsedSections[`sec-${s.index}`])
+                    ? 'Tümünü Genişlet ⊞'
+                    : 'Tümünü Daralt ⊟'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sections & Activities List */}
+            {loadingSections ? (
+              <View style={styles.explorerLoadingBox}>
+                <ActivityIndicator size="large" color="#3b82f6" />
+                <Text style={styles.explorerLoadingText}>
+                  Haftalık slaytlar ve materyaller taranıyor...
+                </Text>
+              </View>
+            ) : filteredSections.length === 0 ? (
+              <View style={styles.explorerEmptyBox}>
+                <Text style={styles.explorerEmptyIcon}>📂</Text>
+                <Text style={styles.explorerEmptyTitle}>Materyal Bulunamadı</Text>
+                <Text style={styles.explorerEmptySub}>
+                  {contentSearchQuery
+                    ? 'Arama kriterlerinize uygun dosya bulunamadı.'
+                    : 'Bu ders için henüz materyal yüklenmemiş veya Moodle oturumu yenilenmeli.'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.explorerScrollView}
+                contentContainerStyle={styles.explorerScrollContent}
+              >
+                {filteredSections.map((sec) => {
+                  const isCollapsed = Boolean(collapsedSections[`sec-${sec.index}`]);
+                  return (
+                    <View key={`sec-${sec.index}`} style={styles.sectionCard}>
+                      <TouchableOpacity
+                        style={styles.sectionHeader}
+                        onPress={() => toggleSectionCollapse(`sec-${sec.index}`)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.sectionHeaderLeft}>
+                          <Text style={styles.sectionCalendarIcon}>📅</Text>
+                          <Text style={styles.sectionTitle} numberOfLines={2}>
+                            {sec.name}
+                          </Text>
+                        </View>
+                        <View style={styles.sectionHeaderRight}>
+                          <View style={styles.sectionCountBadge}>
+                            <Text style={styles.sectionCountText}>
+                              {sec.activities.length}
+                            </Text>
+                          </View>
+                          <Text style={styles.sectionChevron}>
+                            {isCollapsed ? '▼' : '▲'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {!isCollapsed && (
+                        <View style={styles.sectionBody}>
+                          {sec.activities.length === 0 ? (
+                            <Text style={styles.sectionEmptyText}>
+                              Bu hafta için henüz materyal eklenmemiş.
+                            </Text>
+                          ) : (
+                            sec.activities.map((act, actIdx) => {
+                              const badge = getActivityBadge(act);
+                              return (
+                                <View
+                                  key={`act-${actIdx}`}
+                                  style={[
+                                    styles.activityCard,
+                                    (act.modType === 'turnitin' || act.fileType === 'turnitin') &&
+                                      styles.activityCardTurnitin,
+                                  ]}
+                                >
+                                  <View style={styles.activityMainRow}>
+                                    <Text style={styles.activityIcon}>
+                                      {getFileIcon(act.fileType || act.modType)}
+                                    </Text>
+                                    <View style={styles.activityInfo}>
+                                      <Text style={styles.activityTitle}>{act.title}</Text>
+                                      <View style={styles.activityBadgeRow}>
+                                        <View
+                                          style={[
+                                            styles.activityTypeBadge,
+                                            { backgroundColor: badge.bg },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.activityTypeBadgeText,
+                                              { color: badge.color },
+                                            ]}
+                                          >
+                                            {badge.label}
+                                          </Text>
+                                        </View>
+                                      </View>
+                                    </View>
+
+                                    <TouchableOpacity
+                                      style={[
+                                        styles.activityActionBtn,
+                                        (act.modType === 'turnitin' || act.fileType === 'turnitin') &&
+                                          styles.activityActionBtnTurnitin,
+                                      ]}
+                                      onPress={() => openUrl(act.url)}
+                                    >
+                                      <Text style={styles.activityActionBtnText}>
+                                        {act.modType === 'assign' || act.modType === 'turnitin'
+                                          ? 'Gör ↗'
+                                          : 'Aç ↗'}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                              );
+                            })
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        )}
+      </Modal>
 
       {/* Connect Modal */}
       <Modal
@@ -1701,5 +2418,351 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 13,
+  },
+  courseFooterActions: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  courseViewContentBtn: {
+    backgroundColor: '#1e3a8a',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  courseViewContentBtnText: {
+    color: '#bfdbfe',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  explorerContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+  },
+  explorerNavbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: '#1e293b',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  explorerBackBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  explorerBackBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  explorerNavTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  explorerNavCode: {
+    color: '#60a5fa',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  explorerNavTitle: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  explorerRefreshBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  explorerRefreshBtnText: {
+    fontSize: 14,
+  },
+  explorerCourseCard: {
+    backgroundColor: '#1e293b',
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  explorerCourseFullName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  explorerCourseMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  explorerInstructorTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  explorerInstructorIcon: {
+    fontSize: 13,
+    marginRight: 6,
+  },
+  explorerInstructorText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  explorerMoodleWebBtn: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  explorerMoodleWebText: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  explorerSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    marginHorizontal: 16,
+    marginVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  explorerSearchIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  explorerSearchInput: {
+    flex: 1,
+    paddingVertical: 9,
+    color: '#ffffff',
+    fontSize: 13,
+  },
+  explorerSearchClear: {
+    color: '#94a3b8',
+    fontSize: 14,
+    padding: 4,
+  },
+  explorerFilterChipsBar: {
+    marginVertical: 6,
+  },
+  filterChipsScroll: {
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  explorerChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  explorerChipActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#3b82f6',
+  },
+  explorerChipText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  explorerChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  explorerStatsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+  },
+  explorerStatsText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  explorerToggleAllText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  explorerLoadingBox: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  explorerLoadingText: {
+    color: '#94a3b8',
+    marginTop: 12,
+    fontSize: 13,
+  },
+  explorerEmptyBox: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  explorerEmptyIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  explorerEmptyTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  explorerEmptySub: {
+    color: '#64748b',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  explorerScrollView: {
+    flex: 1,
+  },
+  explorerScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sectionCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#172236',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  sectionCalendarIcon: {
+    fontSize: 15,
+    marginRight: 8,
+  },
+  sectionTitle: {
+    color: '#f1f5f9',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+  },
+  sectionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionCountBadge: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  sectionCountText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sectionChevron: {
+    color: '#64748b',
+    fontSize: 11,
+  },
+  sectionBody: {
+    padding: 10,
+    backgroundColor: '#1e293b',
+  },
+  sectionEmptyText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  activityCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  activityCardTurnitin: {
+    borderColor: '#7e22ce',
+    backgroundColor: '#1e1136',
+  },
+  activityMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  activityInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  activityTitle: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  activityBadgeRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  activityTypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  activityTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  activityActionBtn: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  activityActionBtnTurnitin: {
+    backgroundColor: '#7e22ce',
+  },
+  activityActionBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

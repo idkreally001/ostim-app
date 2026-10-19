@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StudentProfile, LmsSessionData, LmsCachedData } from '../types/models';
+import { StudentProfile, LmsSessionData, LmsCachedData, LmsCourseSection } from '../types/models';
 
 const KEY_JWT = 'ostim_auth_jwt_token';
 const KEY_STUDENT_NO = 'ostim_auth_student_no';
@@ -115,6 +115,23 @@ export class AuthStorage {
 
   public static async getCachedAssignmentDetails(assignmentId: number): Promise<any | null> {
     const raw = await AsyncStorage.getItem(`@ostim_assignment_details_${assignmentId}`);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async saveCachedCourseSections(
+    courseId: number,
+    sections: LmsCourseSection[]
+  ): Promise<void> {
+    await AsyncStorage.setItem(`@ostim_course_sections_${courseId}`, JSON.stringify(sections));
+  }
+
+  public static async getCachedCourseSections(courseId: number): Promise<LmsCourseSection[] | null> {
+    const raw = await AsyncStorage.getItem(`@ostim_course_sections_${courseId}`);
     if (!raw) return null;
     try {
       return JSON.parse(raw);

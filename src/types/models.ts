@@ -109,4 +109,21 @@ export interface LmsAssignmentDetails {
   weekDocuments: LmsWeekDocument[];
 }
 
+export interface LmsSectionActivity {
+  id?: string | number;
+  title: string;
+  url: string;
+  modType: 'resource' | 'assign' | 'quiz' | 'turnitin' | 'page' | 'folder' | 'url' | 'forum' | 'attendance' | 'other';
+  fileType?: 'pdf' | 'pptx' | 'zip' | 'doc' | 'link' | 'quiz' | 'turnitin' | 'resource' | 'other';
+}
+
+export interface LmsCourseSection {
+  index: number;
+  id?: string;
+  name: string;
+  activityCount: number;
+  activities: LmsSectionActivity[];
+}
+
+
 

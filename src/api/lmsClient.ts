@@ -5,6 +5,8 @@ import {
   LmsSessionData,
   LmsWeekDocument,
   LmsAssignmentDetails,
+  LmsCourseSection,
+  LmsSectionActivity,
 } from '../types/models';
 import { logService } from '../services/logService';
 
@@ -338,6 +340,93 @@ export class OstimLmsClient {
         attachedFiles: [],
         weekDocuments: [],
       };
+    }
+  }
+
+  /**
+   * Fetch all course sections (weeks) and their activities (PDFs, slides, assignments)
+   */
+  public async getCourseSections(courseId: number): Promise<LmsCourseSection[]> {
+    try {
+      const courseUrl = `${LMS_BASE_URL}/course/view.php?id=${courseId}`;
+      let targetUrl = courseUrl;
+      if (Platform.OS === 'web') {
+        targetUrl = courseUrl.replace(LMS_BASE_URL, '/lms-proxy');
+      }
+
+      const headers: Record<string, string> = {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'X-Moodle-Session': this.moodleSession || '',
+      };
+      if (Platform.OS !== 'web' && this.moodleSession) {
+        headers['Cookie'] = `MoodleSession=${this.moodleSession}`;
+      }
+
+      const res = await fetch(targetUrl, { headers });
+      if (!res.ok) {
+        throw new Error(`Ders sayfası yüklenemedi (${res.status})`);
+      }
+      const html = await res.text();
+
+      const sections: LmsCourseSection[] = [];
+      const rawSections = html.split(/(?=<li[^>]*id=["']section-\d+["']|<section[^>]*id=["']section-\d+["'])/i);
+
+      for (let i = 1; i < rawSections.length; i++) {
+        const secChunk = rawSections[i];
+        const nameMatch =
+          secChunk.match(/<(?:h2|h3|h4|span)[^>]*class=["'][^"']*(?:sectionname|section-title)[^"']*["'][^>]*>([\s\S]*?)<\/(?:h2|h3|h4|span)>/i) ||
+          secChunk.match(/data-sectionname=["']([^"']+)["']/i);
+
+        let secName = nameMatch ? nameMatch[1].replace(/<[^>]*>?/gm, '').trim() : `Hafta ${i}`;
+
+        const activities: LmsSectionActivity[] = [];
+        const actRegex =
+          /<li[^>]*class=["']([^"']*activity[^"']*)["'][^>]*>[\s\S]*?<a[^>]*href=["']([^"']*)["'][^>]*>[\s\S]*?<span[^>]*class=["']instancename["'][^>]*>([\s\S]*?)<\/span>/gi;
+
+        let actMatch;
+        while ((actMatch = actRegex.exec(secChunk)) !== null) {
+          const classes = actMatch[1];
+          const url = actMatch[2].replace(/&amp;/g, '&');
+          const rawTitle = actMatch[3]
+            .replace(/<[^>]*>?/gm, '')
+            .replace(/\s+(File|URL|Quiz|Page|Folder|Turnitin Assignment 2|Assignment|DOCX|PDF|PPTX|ZIP)\b/gi, '')
+            .trim();
+
+          const modMatch = classes.match(/modtype_([a-z0-9_-]+)/i);
+          const rawMod = modMatch ? modMatch[1].toLowerCase() : 'resource';
+          const modType = (
+            ['resource', 'assign', 'quiz', 'turnitin', 'page', 'folder', 'url', 'forum', 'attendance'].includes(rawMod)
+              ? rawMod === 'turnitintooltwo' ? 'turnitin' : rawMod
+              : 'other'
+          ) as LmsSectionActivity['modType'];
+
+          const fileType = detectFileType(rawTitle, url, rawMod);
+
+          if (rawTitle && url) {
+            activities.push({
+              title: rawTitle,
+              url,
+              modType,
+              fileType,
+            });
+          }
+        }
+
+        if (activities.length > 0 || (secName && !secName.toLowerCase().includes('general'))) {
+          sections.push({
+            index: i,
+            id: `section-${i}`,
+            name: secName,
+            activityCount: activities.length,
+            activities,
+          });
+        }
+      }
+
+      return sections;
+    } catch (err: any) {
+      logService.error('LMS Course Sections', `Failed to load sections for course ${courseId}`, err.message);
+      return [];
     }
   }
 
