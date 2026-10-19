@@ -24,6 +24,8 @@ import { GradesScreen } from './src/screens/GradesScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
 import { LmsScreen } from './src/screens/LmsScreen';
 import { LogsScreen } from './src/screens/LogsScreen';
+import { updateService, UpdateInfo } from './src/services/updateService';
+import { UpdateModal } from './src/components/UpdateModal';
 
 type Portal = 'obs' | 'lms';
 type ObsTab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
@@ -35,6 +37,8 @@ export default function App() {
   const [isObsAuthenticated, setIsObsAuthenticated] = useState(false);
   const [isLmsAuthenticated, setIsLmsAuthenticated] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const [obsTab, setObsTab] = useState<ObsTab>('dashboard');
 
@@ -74,6 +78,14 @@ export default function App() {
     };
 
     bootstrap();
+
+    // Check for OTA updates from GitHub Releases in background
+    updateService.checkForUpdates().then((info) => {
+      if (info && info.hasUpdate) {
+        setUpdateInfo(info);
+        setShowUpdateModal(true);
+      }
+    });
 
     const unsub = logService.subscribe(() => {
       setErrorCount(logService.getErrorCount());
@@ -463,6 +475,13 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      {/* GitHub Releases In-App Update Modal */}
+      <UpdateModal
+        visible={showUpdateModal}
+        updateInfo={updateInfo}
+        onDismiss={() => setShowUpdateModal(false)}
+      />
     </SafeAreaView>
   );
 }
