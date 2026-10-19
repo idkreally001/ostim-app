@@ -38,9 +38,6 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm install
 
-      - name: ⚙️ Generate Android Project via Expo Prebuild
-        run: npx expo prebuild --platform android --clean
-
       - name: 🔨 Grant Execute Permission for Gradlew
         run: chmod +x android/gradlew
 

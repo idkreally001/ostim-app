@@ -25,6 +25,8 @@ import {
 } from '../types/models';
 import { logService } from '../services/logService';
 import { AppAlert } from '../utils/alertHelper';
+import { FileHelper } from '../utils/fileHelper';
+import { LmsWebViewLogin } from '../components/LmsWebViewLogin';
 
 interface LmsScreenProps {
   onSessionChange?: (connected: boolean) => void;
@@ -102,6 +104,7 @@ export const LmsScreen: React.FC<LmsScreenProps> = ({ onSessionChange }) => {
 
   // Connect modal state
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showWebViewLogin, setShowWebViewLogin] = useState(false);
   const [inputSesskey, setInputSesskey] = useState('');
   const [inputCookie, setInputCookie] = useState('');
   const [connecting, setConnecting] = useState(false);
@@ -676,6 +679,39 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
     }
   };
 
+  const handleWebViewConnectSuccess = async (session: { sesskey: string; moodleSession: string }) => {
+    setShowWebViewLogin(false);
+    setShowConnectModal(false);
+    setConnecting(true);
+    setConnectError(null);
+
+    try {
+      const sessionData: LmsSessionData = {
+        sesskey: session.sesskey,
+        moodleSession: session.moodleSession,
+        lastSynced: new Date().toISOString(),
+      };
+
+      lmsClient.setSession(sessionData);
+
+      const testResult = await lmsClient.testConnection();
+      if (!testResult.success) {
+        throw new Error(testResult.message);
+      }
+
+      await AuthStorage.saveLmsSession(sessionData);
+      updateConnectedState(true);
+      await syncData(sessionData);
+
+      AppAlert.alert('Bağlantı Başarılı', `${testResult.courseCount} ders başarıyla senkronize edildi.`);
+    } catch (err: any) {
+      logService.error('LMS Connect', 'WebView oturumu bağlanamadı', err.message);
+      AppAlert.alert('Bağlantı Hatası', err.message || 'Moodle oturumu doğrulanamadı.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleConnect = async () => {
     const cleanSesskey = inputSesskey.trim();
     let cleanCookie = inputCookie.trim();
@@ -752,6 +788,47 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
     Linking.openURL(url).catch(() => {
       AppAlert.alert('Hata', 'Bağlantı açılamadı.');
     });
+  };
+
+  const handleOpenDocument = async (doc: {
+    url?: string;
+    title: string;
+    type?: string;
+    modType?: string;
+    isAttachment?: boolean;
+  }) => {
+    if (!doc.url) return;
+
+    // Web activities (Turnitin, Quizzes, Submissions) must open in browser
+    const isWebActivity =
+      doc.type === 'turnitin' ||
+      doc.type === 'quiz' ||
+      doc.modType === 'quiz' ||
+      doc.modType === 'turnitin' ||
+      doc.modType === 'assign' ||
+      doc.url.includes('/mod/quiz/') ||
+      doc.url.includes('/turnitintooltwo/') ||
+      doc.url.includes('/mod/assign/');
+
+    if (isWebActivity) {
+      Linking.openURL(doc.url).catch(() => AppAlert.alert('Hata', 'Bağlantı açılamadı.'));
+      return;
+    }
+
+    // For downloadable files (PDF, PPTX, DOCX, ZIP, etc.):
+    const session = lmsClient.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.moodleSession) {
+      headers['Cookie'] = `MoodleSession=${session.moodleSession}`;
+    }
+
+    let ext = doc.type && doc.type !== 'resource' ? `.${doc.type}` : '';
+    let filename = doc.title;
+    if (ext && !filename.toLowerCase().endsWith(ext)) {
+      filename += ext;
+    }
+
+    await FileHelper.downloadAndOpenFile(doc.url, filename, headers);
   };
 
   // Filter deadlines based on selected chip
@@ -1144,7 +1221,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                     <TouchableOpacity
                                       key={`att-${idx}`}
                                       style={styles.docItemCard}
-                                      onPress={() => openUrl(file.url)}
+                                      onPress={() => handleOpenDocument(file)}
                                     >
                                       <Text style={styles.docItemIcon}>{getFileIcon(file.type)}</Text>
                                       <View style={styles.docItemInfo}>
@@ -1167,7 +1244,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                         styles.docItemCard,
                                         doc.type === 'turnitin' && styles.docItemTurnitinCard,
                                       ]}
-                                      onPress={() => openUrl(doc.url)}
+                                      onPress={() => handleOpenDocument(doc)}
                                     >
                                       <Text style={styles.docItemIcon}>{getFileIcon(doc.type)}</Text>
                                       <View style={styles.docItemInfo}>
@@ -1553,7 +1630,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                         (act.modType === 'turnitin' || act.fileType === 'turnitin') &&
                                           styles.activityActionBtnTurnitin,
                                       ]}
-                                      onPress={() => openUrl(act.url)}
+                                      onPress={() => handleOpenDocument(act)}
                                     >
                                       <Text style={styles.activityActionBtnText}>
                                         {act.modType === 'assign' || act.modType === 'turnitin'
@@ -1594,6 +1671,26 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
             </View>
 
             <ScrollView style={styles.modalScroll}>
+              {/* One-Tap Microsoft 365 OAuth Connect */}
+              <TouchableOpacity
+                style={styles.msOAuthBtn}
+                onPress={() => setShowWebViewLogin(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.msOAuthIcon}>🔑</Text>
+                <View style={styles.msOAuthTextCol}>
+                  <Text style={styles.msOAuthTitle}>Microsoft 365 ile Hızlı Giriş</Text>
+                  <Text style={styles.msOAuthSub}>Tek dokunuşla otomatik bağlanın</Text>
+                </View>
+                <Text style={styles.msOAuthArrow}>➔</Text>
+              </TouchableOpacity>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>veya manuel olarak girin</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
               <Text style={styles.modalSubheading}>
                 OSTİM LMS Microsoft 365 ile oturum açtığı için tek seferlik oturum anahtarınızı
                 eşleştirmeniz gerekmektedir. Bir kez bağlandıktan sonra aylar boyunca tekrar giriş
@@ -1658,6 +1755,13 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
           </View>
         </View>
       </Modal>
+
+      {/* Microsoft 365 In-App WebView Login Modal */}
+      <LmsWebViewLogin
+        visible={showWebViewLogin}
+        onClose={() => setShowWebViewLogin(false)}
+        onSuccess={handleWebViewConnectSuccess}
+      />
 
       {/* Help Modal */}
       <Modal
@@ -2761,5 +2865,57 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 11,
     fontWeight: '700',
+  },
+  msOAuthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0078d4',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: '#0078d4',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  msOAuthIcon: {
+    fontSize: 22,
+    marginRight: 12,
+  },
+  msOAuthTextCol: {
+    flex: 1,
+  },
+  msOAuthTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  msOAuthSub: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 11,
+  },
+  msOAuthArrow: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155',
+  },
+  dividerText: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

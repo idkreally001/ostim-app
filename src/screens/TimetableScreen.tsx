@@ -12,6 +12,7 @@ import {
 import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { AppAlert } from '../utils/alertHelper';
+import { FileHelper } from '../utils/fileHelper';
 import { TimetableEntry } from '../types/models';
 
 const DAYS = [
@@ -63,7 +64,7 @@ export const TimetableScreen: React.FC = () => {
     fetchTimetable();
   }, []);
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     if (schedule.length === 0) {
       AppAlert.alert('Bilgi', 'Dışa aktarılacak ders bulunamadı.');
       return;
@@ -91,19 +92,54 @@ export const TimetableScreen: React.FC = () => {
     ];
 
     const csvContent = '\uFEFF' + rows.map((r) => r.join(',')).join('\r\n');
+    await FileHelper.exportAndShareFile(
+      'ostim_haftalik_ders_programi.csv',
+      csvContent,
+      'text/csv'
+    );
+  };
 
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'ostim_haftalik_ders_programi.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      AppAlert.alert('CSV Hazırlandı', 'Ders programı CSV formatına dönüştürüldü.');
+  const exportIcs = async () => {
+    if (schedule.length === 0) {
+      AppAlert.alert('Bilgi', 'Dışa aktarılacak ders bulunamadı.');
+      return;
     }
+
+    const icsDays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    let eventsStr = '';
+
+    schedule.forEach((item, index) => {
+      const dayCode = icsDays[item.dayId] || 'MO';
+      const cleanStart = item.startTime.replace(':', '') + '00';
+      const cleanEnd = item.endTime.replace(':', '') + '00';
+
+      eventsStr += `BEGIN:VEVENT\r\n`;
+      eventsStr += `UID:ostim-class-${item.courseCode}-${item.dayId}-${index}@ostim.edu.tr\r\n`;
+      eventsStr += `SUMMARY:${item.courseCode} - ${item.courseName}\r\n`;
+      eventsStr += `LOCATION:${item.classroom}\r\n`;
+      eventsStr += `DESCRIPTION:Derslik: ${item.classroom}\\nÖğretim Elemanı: ${item.instructor || 'Belirtilmedi'}\r\n`;
+      eventsStr += `RRULE:FREQ=WEEKLY;BYDAY=${dayCode}\r\n`;
+      eventsStr += `DTSTART;TZID=Europe/Istanbul:20261019T${cleanStart}\r\n`;
+      eventsStr += `DTEND;TZID=Europe/Istanbul:20261019T${cleanEnd}\r\n`;
+      eventsStr += `END:VEVENT\r\n`;
+    });
+
+    const icsContent =
+      `BEGIN:VCALENDAR\r\n` +
+      `VERSION:2.0\r\n` +
+      `PRODID:-//OSTIM Teknik Universitesi//Ders Programi//TR\r\n` +
+      `CALSCALE:GREGORIAN\r\n` +
+      `METHOD:PUBLISH\r\n` +
+      `X-WR-CALNAME:OSTİM Haftalık Ders Programı\r\n` +
+      `X-WR-TIMEZONE:Europe/Istanbul\r\n` +
+      eventsStr +
+      `END:VCALENDAR\r\n`;
+
+    await FileHelper.exportAndShareFile(
+      'ostim_ders_programi.ics',
+      icsContent,
+      'text/calendar'
+    );
   };
 
   const dayClasses = schedule
@@ -112,7 +148,7 @@ export const TimetableScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Bar with Day Tabs and CSV Export */}
+      {/* Top Bar with Day Tabs and Export Buttons */}
       <View style={styles.tabBar}>
         <View style={styles.daysRow}>
           {DAYS.map((day) => {
@@ -131,9 +167,14 @@ export const TimetableScreen: React.FC = () => {
           })}
         </View>
 
-        <TouchableOpacity style={styles.exportBtn} onPress={exportCsv}>
-          <Text style={styles.exportBtnText}>📥 CSV</Text>
-        </TouchableOpacity>
+        <View style={styles.exportGroup}>
+          <TouchableOpacity style={styles.exportBtn} onPress={exportCsv} activeOpacity={0.7}>
+            <Text style={styles.exportBtnText}>📥 CSV</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exportBtnIcs} onPress={exportIcs} activeOpacity={0.7}>
+            <Text style={styles.exportBtnIcsText}>📅 Takvim</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Offline Mode Banner */}
@@ -237,17 +278,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
   },
+  exportGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
   exportBtn: {
     backgroundColor: '#1e293b',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#334155',
   },
   exportBtnText: {
     color: '#38bdf8',
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  exportBtnIcs: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  exportBtnIcsText: {
+    color: '#34d399',
+    fontSize: 11,
     fontWeight: '700',
   },
   list: {

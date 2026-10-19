@@ -19,6 +19,7 @@ import { AuthStorage } from '../storage/authStorage';
 import { configManager } from '../config/configManager';
 import { AppAlert } from '../utils/alertHelper';
 import { LmsSessionData } from '../types/models';
+import { LmsWebViewLogin } from '../components/LmsWebViewLogin';
 
 interface LoginScreenProps {
   initialPortal?: 'obs' | 'lms';
@@ -50,6 +51,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [moodleCookie, setMoodleCookie] = useState('');
   const [lmsLoading, setLmsLoading] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showWebViewLogin, setShowWebViewLogin] = useState(false);
+  const [showManualLms, setShowManualLms] = useState(Platform.OS === 'web');
 
   // OBS Login Action
   const handleObsLogin = async () => {
@@ -76,25 +79,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
-  // LMS Connect Action
-  const handleLmsConnect = async () => {
-    const cleanSesskey = sesskey.trim();
-    let cleanCookie = moodleCookie.trim();
-
-    if (!cleanSesskey) {
-      AppAlert.alert('Eksik Bilgi', 'Lütfen Moodle sesskey değerini giriniz.');
-      return;
-    }
-
-    if (!cleanCookie) {
-      AppAlert.alert('Eksik Bilgi', 'Lütfen MoodleSession çerez değerini giriniz.');
-      return;
-    }
-
-    if (cleanCookie.startsWith('MoodleSession=')) {
-      cleanCookie = cleanCookie.replace('MoodleSession=', '').split(';')[0].trim();
-    }
-
+  // Shared LMS Connection & Cache Logic
+  const connectWithSession = async (cleanSesskey: string, cleanCookie: string) => {
     setLmsLoading(true);
     try {
       const sessionData: LmsSessionData = {
@@ -132,6 +118,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     } finally {
       setLmsLoading(false);
     }
+  };
+
+  // LMS Manual Connect Action
+  const handleLmsConnect = async () => {
+    const cleanSesskey = sesskey.trim();
+    let cleanCookie = moodleCookie.trim();
+
+    if (!cleanSesskey) {
+      AppAlert.alert('Eksik Bilgi', 'Lütfen Moodle sesskey değerini giriniz.');
+      return;
+    }
+
+    if (!cleanCookie) {
+      AppAlert.alert('Eksik Bilgi', 'Lütfen MoodleSession çerez değerini giriniz.');
+      return;
+    }
+
+    if (cleanCookie.startsWith('MoodleSession=')) {
+      cleanCookie = cleanCookie.replace('MoodleSession=', '').split(';')[0].trim();
+    }
+
+    await connectWithSession(cleanSesskey, cleanCookie);
+  };
+
+  // Automated Microsoft 365 OAuth Capture Success
+  const handleWebViewSuccess = async ({
+    sesskey: capturedSesskey,
+    moodleSession: capturedCookie,
+  }: {
+    sesskey: string;
+    moodleSession: string;
+  }) => {
+    setShowWebViewLogin(false);
+    setSesskey(capturedSesskey);
+    setMoodleCookie(capturedCookie);
+    await connectWithSession(capturedSesskey, capturedCookie);
   };
 
   const handleQuickFillLms = () => {
@@ -297,67 +319,100 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               ) : (
                 /* LMS Connect Form */
                 <View style={styles.form}>
-                  <View style={styles.oidcInfoBox}>
-                    <Text style={styles.oidcInfoTitle}>🔐 Microsoft Office 365 Girişi</Text>
-                    <Text style={styles.oidcInfoDesc}>
-                      OSTİM LMS hesapları şifre kullanmaz; Microsoft 2FA ile korunur. Bir kez bağlandıktan sonra aylarca açık kalır.
-                    </Text>
-                  </View>
-
-                  <Text style={styles.label}>Sesskey (Moodle Oturum Anahtarı)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Örn: PCMcci68p5"
-                    placeholderTextColor="#64748b"
-                    value={sesskey}
-                    onChangeText={setSesskey}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-
-                  <Text style={styles.label}>MoodleSession Çerezi (Cookie)</Text>
-                  <TextInput
-                    style={[styles.input, styles.multilineInput]}
-                    placeholder="MoodleSession=..."
-                    placeholderTextColor="#64748b"
-                    value={moodleCookie}
-                    onChangeText={setMoodleCookie}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    multiline
-                  />
-
-                  <TouchableOpacity style={styles.quickFillBtn} onPress={handleQuickFillLms}>
-                    <Text style={styles.quickFillBtnText}>⚡ Son Aktif Sesskey'i Doldur (OsdqwhZWb8)</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.lmsActionRow}>
-                    <TouchableOpacity
-                      style={styles.openWebSmallBtn}
-                      onPress={() => openUrl('https://lmsclus.ostimteknik.edu.tr/auth/oidc/')}
-                    >
-                      <Text style={styles.openWebSmallBtnText}>🌐 Tarayıcıda Aç</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.helpSmallBtn}
-                      onPress={() => setShowHelpModal(true)}
-                    >
-                      <Text style={styles.helpSmallBtnText}>❓ Nasıl Bulunur?</Text>
-                    </TouchableOpacity>
-                  </View>
-
+                  {/* One-Tap Microsoft 365 OAuth Login Card */}
                   <TouchableOpacity
-                    style={[styles.primaryButton, lmsLoading && styles.buttonDisabled]}
-                    onPress={handleLmsConnect}
-                    disabled={lmsLoading}
+                    style={styles.msOAuthBtn}
+                    onPress={() => setShowWebViewLogin(true)}
+                    activeOpacity={0.85}
                   >
-                    {lmsLoading ? (
-                      <ActivityIndicator color="#ffffff" />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>LMS'yi Bağla ve Doğrula</Text>
-                    )}
+                    <View style={styles.msOAuthIconCircle}>
+                      <Text style={styles.msOAuthIcon}>🔑</Text>
+                    </View>
+                    <View style={styles.msOAuthTextCol}>
+                      <Text style={styles.msOAuthTitle}>Microsoft 365 ile Hızlı Giriş</Text>
+                      <Text style={styles.msOAuthSub}>
+                        Tek dokunuşla kurumsal hesabınızla bağlanın
+                      </Text>
+                    </View>
+                    <Text style={styles.msOAuthArrow}>➔</Text>
                   </TouchableOpacity>
+
+                  {/* Manual / Advanced Toggle */}
+                  <TouchableOpacity
+                    style={styles.manualToggleBtn}
+                    onPress={() => setShowManualLms(!showManualLms)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.manualToggleText}>
+                      {showManualLms ? '▲ Manuel Girişi Gizle' : '⚙️ Manuel Giriş (Sesskey & Çerez)'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showManualLms ? (
+                    <View style={styles.manualSection}>
+                      <View style={styles.oidcInfoBox}>
+                        <Text style={styles.oidcInfoTitle}>🔐 Manuel Moodle Girişi</Text>
+                        <Text style={styles.oidcInfoDesc}>
+                          Tarayıcı geliştirici araçlarından aldığınız sesskey ve MoodleSession çerez değerini yapıştırarak da bağlanabilirsiniz.
+                        </Text>
+                      </View>
+
+                      <Text style={styles.label}>Sesskey (Moodle Oturum Anahtarı)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Örn: PCMcci68p5"
+                        placeholderTextColor="#64748b"
+                        value={sesskey}
+                        onChangeText={setSesskey}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+
+                      <Text style={styles.label}>MoodleSession Çerezi (Cookie)</Text>
+                      <TextInput
+                        style={[styles.input, styles.multilineInput]}
+                        placeholder="MoodleSession=..."
+                        placeholderTextColor="#64748b"
+                        value={moodleCookie}
+                        onChangeText={setMoodleCookie}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        multiline
+                      />
+
+                      <TouchableOpacity style={styles.quickFillBtn} onPress={handleQuickFillLms}>
+                        <Text style={styles.quickFillBtnText}>⚡ Son Aktif Sesskey'i Doldur (OsdqwhZWb8)</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.lmsActionRow}>
+                        <TouchableOpacity
+                          style={styles.openWebSmallBtn}
+                          onPress={() => openUrl('https://lmsclus.ostimteknik.edu.tr/auth/oidc/')}
+                        >
+                          <Text style={styles.openWebSmallBtnText}>🌐 Tarayıcıda Aç</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.helpSmallBtn}
+                          onPress={() => setShowHelpModal(true)}
+                        >
+                          <Text style={styles.helpSmallBtnText}>❓ Nasıl Bulunur?</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.primaryButton, lmsLoading && styles.buttonDisabled]}
+                        onPress={handleLmsConnect}
+                        disabled={lmsLoading}
+                      >
+                        {lmsLoading ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <Text style={styles.primaryButtonText}>LMS'yi Bağla ve Doğrula</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
                 </View>
               )}
             </View>
@@ -405,6 +460,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Microsoft 365 In-App WebView Login Modal */}
+      <LmsWebViewLogin
+        visible={showWebViewLogin}
+        onClose={() => setShowWebViewLogin(false)}
+        onSuccess={handleWebViewSuccess}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -765,5 +827,62 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 13,
+  },
+  msOAuthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0078d4',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#0078d4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  msOAuthIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  msOAuthIcon: {
+    fontSize: 22,
+  },
+  msOAuthTextCol: {
+    flex: 1,
+  },
+  msOAuthTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  msOAuthSub: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 12,
+  },
+  msOAuthArrow: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  manualToggleBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  manualToggleText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  manualSection: {
+    marginTop: 8,
   },
 });
