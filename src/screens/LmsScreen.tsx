@@ -17,8 +17,18 @@ import { AuthStorage } from '../storage/authStorage';
 import { LmsCourseItem, LmsCalendarEvent, LmsSessionData } from '../types/models';
 import { logService } from '../services/logService';
 
-export const LmsScreen: React.FC = () => {
+interface LmsScreenProps {
+  onSessionChange?: (connected: boolean) => void;
+}
+
+export const LmsScreen: React.FC<LmsScreenProps> = ({ onSessionChange }) => {
   const [isConnected, setIsConnected] = useState(false);
+
+  const updateConnectedState = (connected: boolean) => {
+    setIsConnected(connected);
+    onSessionChange?.(connected);
+  };
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'deadlines' | 'courses'>('deadlines');
@@ -150,11 +160,11 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
       const savedSession = await AuthStorage.getLmsSession();
       if (savedSession?.sesskey && savedSession?.moodleSession) {
         lmsClient.setSession(savedSession);
-        setIsConnected(true);
+        updateConnectedState(true);
         // Sync fresh data in background
         syncData(savedSession);
       } else {
-        setIsConnected(false);
+        updateConnectedState(false);
       }
     } catch (err: any) {
       logService.error('LmsScreen', 'Bootstrap failed', err.message);
@@ -249,7 +259,7 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
 
       // Save valid session to secure storage
       await AuthStorage.saveLmsSession(sessionData);
-      setIsConnected(true);
+      updateConnectedState(true);
       setShowConnectModal(false);
 
       // Pull fresh data
@@ -276,7 +286,7 @@ const INITIAL_EVENTS: LmsCalendarEvent[] = [
           onPress: async () => {
             await AuthStorage.clearLmsSession();
             lmsClient.clearSession();
-            setIsConnected(false);
+            updateConnectedState(false);
             setCourses([]);
             setEvents([]);
           },
