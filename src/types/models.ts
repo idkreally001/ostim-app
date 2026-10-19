@@ -51,10 +51,45 @@ export interface SemesterTerm {
   isActive: boolean;
 }
 
-export interface LmsAssignment {
+export interface LmsCourseItem {
   id: number;
-  courseName: string;
-  title: string;
-  dueDate: string;
-  isSubmitted: boolean;
+  fullname: string;
+  shortname: string;
+  code: string;
+  instructor?: string;
+  viewurl: string;
+  courseimage?: string;
+  progress?: number;
+  hasprogress?: boolean;
 }
+
+export interface LmsCalendarEvent {
+  id: number;
+  name: string;
+  description?: string;
+  courseId: number;
+  courseName: string;
+  courseCode: string;
+  timesort: number;
+  formattedDate: string;
+  formattedTime: string;
+  daysRemaining: number;
+  isOverdue: boolean;
+  actionUrl?: string;
+  actionName?: string;
+}
+
+export interface LmsSessionData {
+  sesskey: string;
+  moodleSession: string;
+  userId?: number;
+  userName?: string;
+  lastSynced?: string;
+}
+
+export interface LmsCachedData {
+  courses: LmsCourseItem[];
+  events: LmsCalendarEvent[];
+  lastUpdated: string;
+}
+

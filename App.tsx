@@ -18,9 +18,11 @@ import { DashboardScreen } from './src/screens/DashboardScreen';
 import { TimetableScreen } from './src/screens/TimetableScreen';
 import { GradesScreen } from './src/screens/GradesScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
+import { LmsScreen } from './src/screens/LmsScreen';
 import { LogsScreen } from './src/screens/LogsScreen';
 
-type Tab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
+type Tab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'lms' | 'logs';
+
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
@@ -108,6 +110,8 @@ export default function App() {
         return <GradesScreen />;
       case 'attendance':
         return <AttendanceScreen />;
+      case 'lms':
+        return <LmsScreen />;
       case 'logs':
         return <LogsScreen />;
     }
@@ -123,6 +127,8 @@ export default function App() {
         return 'Dönem Notları';
       case 'attendance':
         return 'Devamsızlık Durumu';
+      case 'lms':
+        return 'Moodle LMS & Teslimler';
       case 'logs':
         return 'Sistem & Hata Günlüğü';
     }
@@ -184,6 +190,16 @@ export default function App() {
           <Text style={styles.navIcon}>⏱️</Text>
           <Text style={[styles.navLabel, currentTab === 'attendance' && styles.activeNavLabel]}>
             Devam
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, currentTab === 'lms' && styles.activeNavItem]}
+          onPress={() => setCurrentTab('lms')}
+        >
+          <Text style={styles.navIcon}>📚</Text>
+          <Text style={[styles.navLabel, currentTab === 'lms' && styles.activeNavLabel]}>
+            LMS
           </Text>
         </TouchableOpacity>
 

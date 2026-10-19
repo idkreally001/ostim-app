@@ -1,10 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StudentProfile } from '../types/models';
+import { StudentProfile, LmsSessionData, LmsCachedData } from '../types/models';
 
 const KEY_JWT = 'ostim_auth_jwt_token';
 const KEY_STUDENT_NO = 'ostim_auth_student_no';
 const KEY_CACHED_PROFILE = '@ostim_cached_profile';
+
+const KEY_LMS_SESSION = 'ostim_lms_session_data';
+const KEY_CACHED_LMS_DATA = '@ostim_cached_lms_data';
 
 export class AuthStorage {
   public static async saveSession(jwtToken: string, studentNo: string): Promise<void> {
@@ -53,4 +56,54 @@ export class AuthStorage {
       return null;
     }
   }
+
+  // --- LMS Session Storage ---
+
+  public static async saveLmsSession(session: LmsSessionData): Promise<void> {
+    const dataStr = JSON.stringify(session);
+    try {
+      await SecureStore.setItemAsync(KEY_LMS_SESSION, dataStr);
+    } catch {
+      await AsyncStorage.setItem(KEY_LMS_SESSION, dataStr);
+    }
+  }
+
+  public static async getLmsSession(): Promise<LmsSessionData | null> {
+    let raw: string | null = null;
+    try {
+      raw = await SecureStore.getItemAsync(KEY_LMS_SESSION);
+    } catch {}
+    if (!raw) {
+      raw = await AsyncStorage.getItem(KEY_LMS_SESSION);
+    }
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  public static async clearLmsSession(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEY_LMS_SESSION);
+    } catch {}
+    await AsyncStorage.removeItem(KEY_LMS_SESSION);
+    await AsyncStorage.removeItem(KEY_CACHED_LMS_DATA);
+  }
+
+  public static async saveCachedLmsData(data: LmsCachedData): Promise<void> {
+    await AsyncStorage.setItem(KEY_CACHED_LMS_DATA, JSON.stringify(data));
+  }
+
+  public static async getCachedLmsData(): Promise<LmsCachedData | null> {
+    const raw = await AsyncStorage.getItem(KEY_CACHED_LMS_DATA);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
 }
+

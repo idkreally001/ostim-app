@@ -213,6 +213,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <Text style={styles.gridTitle}>Devamsızlık</Text>
           <Text style={styles.gridDesc}>Kalan devamsızlık hakları</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('lms')}>
+          <Text style={styles.gridIcon}>📚</Text>
+          <Text style={styles.gridTitle}>Moodle LMS</Text>
+          <Text style={styles.gridDesc}>Ödevler, teslimler ve dersler</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
