@@ -160,7 +160,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.versionBadgeText}>Sürüm v{CURRENT_APP_VERSION}</Text>
             </View>
             <View style={styles.buildBadge}>
-              <Text style={styles.buildBadgeText}>Build 2 (Android)</Text>
+              <Text style={styles.buildBadgeText}>Build 4 (Android)</Text>
             </View>
           </View>
         </View>

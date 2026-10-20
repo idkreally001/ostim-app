@@ -157,29 +157,90 @@ export class OstimObsClient {
 
   /**
    * /m1/mtd2 -> Student Profile
-   * Raw Response: { Stat: true, std: { StudentNo, Name, Surname, Faculty, Department, AGNO, ... } }
+   * Handles multi-format Proliz schemas (std, ogr, ogrBilgi, array-wrapped, or Pascal/UPPERCASE keys).
    */
   public async getProfile(): Promise<StudentProfile> {
     const raw = await this.get('/m1/mtd2');
-    const std = raw.std || (Array.isArray(raw) ? raw[0] : raw) || {};
+    
+    // Unpack possible nested wrapper objects/arrays (std, ogr, ogrBilgi, data, item, Value)
+    let std: any = raw;
+    if (std && typeof std === 'object') {
+      const candidates = ['std', 'ogr', 'ogrBilgi', 'ogrenci', 'ogrGenel', 'genelBilgi', 'data', 'item', 'Value', 'stdInfo'];
+      for (const k of candidates) {
+        if (std[k] !== undefined && std[k] !== null) {
+          std = std[k];
+          break;
+        }
+      }
+    }
+    if (Array.isArray(std)) {
+      std = std[0] || {};
+    }
+    // Check one more level if still nested
+    if (std && typeof std === 'object') {
+      const candidates = ['std', 'ogr', 'ogrBilgi', 'ogrenci', 'ogrGenel', 'genelBilgi'];
+      for (const k of candidates) {
+        if (std[k] !== undefined && std[k] !== null) {
+          std = Array.isArray(std[k]) ? std[k][0] : std[k];
+          break;
+        }
+      }
+    }
+    if (!std || typeof std !== 'object') {
+      std = {};
+    }
+
+    logService.info('OBS Profile', 'Profil verisi çözümlendi', {
+      keys: Object.keys(std),
+    });
 
     const parseNum = (val: any) => {
-      if (!val) return 0;
+      if (val === undefined || val === null || val === '') return 0;
       if (typeof val === 'number') return val;
       return parseFloat(String(val).replace(',', '.')) || 0;
     };
 
+    const getField = (keys: string[]): any => {
+      // 1. Direct key match
+      for (const k of keys) {
+        if (std[k] !== undefined && std[k] !== null && std[k] !== '') {
+          return std[k];
+        }
+      }
+      // 2. Case-insensitive key match against all keys of std
+      const stdEntries = Object.entries(std);
+      for (const k of keys) {
+        const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const match = stdEntries.find(([sk]) => sk.toLowerCase().replace(/[^a-z0-9]/g, '') === lowerK);
+        if (match && match[1] !== undefined && match[1] !== null && match[1] !== '') {
+          return match[1];
+        }
+      }
+      return undefined;
+    };
+
+    const studentNo = getField(['StudentNo', 'OGRENCI_NO', 'OgrenciNo', 'OGR_NO', 'KullaniciAdi']) || this.studentNo || '';
+    const firstName = getField(['Name', 'ADI', 'Ad', 'Adi', 'FirstName', 'OgrAd', 'OGRENCI_ADI']) || '';
+    const lastName = getField(['Surname', 'SOYADI', 'Soyad', 'Soyadi', 'LastName', 'OgrSoyad', 'OGRENCI_SOYADI']) || '';
+    const department = getField(['Department', 'BOLUM_ADI', 'BolumAdi', 'BOLUM', 'ProgramAdi', 'PROGRAM_ADI']) || '';
+    const faculty = getField(['Faculty', 'FAKULTE_ADI', 'FakulteAdi', 'FAKULTE']) || '';
+    const email = getField(['EPOSTA', 'Email', 'Eposta', 'OgrenciEposta']) || '';
+    const photoUrl = getField(['PhotoUrl', 'RESIM_URL', 'ResimUrl', 'FotoUrl', 'FOTO_URL']) || '';
+    const gpa = parseNum(getField(['AGNO', 'Gpa', 'GenelNotOrtalamasi', 'GENEL_AGNO', 'GENEL_ORTALAMA', 'agno']));
+    const termGpa = parseNum(getField(['ANO', 'TermGpa', 'DonemNotOrtalamasi', 'DONEM_ANO', 'DONEM_ORTALAMA', 'ano']));
+    const activeTermId = parseInt(String(getField(['DONEM_ID', 'ActiveTermId', 'DonemId', 'donemID']) || '0'), 10) || undefined;
+
     return {
-      studentNo: std.StudentNo || std.OGRENCI_NO || this.studentNo || '',
-      firstName: std.Name || std.ADI || '',
-      lastName: std.Surname || std.SOYADI || '',
-      department: std.Department || std.BOLUM_ADI || '',
-      faculty: std.Faculty || std.FAKULTE_ADI || '',
-      email: std.EPOSTA || '',
-      photoUrl: std.PhotoUrl || std.RESIM_URL || '',
-      gpa: parseNum(std.AGNO),
-      termGpa: parseNum(std.ANO),
-      activeTermId: std.DONEM_ID ? parseInt(std.DONEM_ID, 10) : undefined,
+      studentNo,
+      firstName,
+      lastName,
+      department,
+      faculty,
+      email,
+      photoUrl,
+      gpa,
+      termGpa,
+      activeTermId,
     };
   }
 

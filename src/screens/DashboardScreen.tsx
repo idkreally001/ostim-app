@@ -24,6 +24,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   const [nextClassDateText, setNextClassDateText] = useState<string>('');
   const [currentWeather, setCurrentWeather] = useState<WeatherInfo | null>(null);
   const [lessonWeather, setLessonWeather] = useState<LessonWeatherSummary | null>(null);
+  const [isCached, setIsCached] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -34,8 +35,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
         AuthStorage.getCachedProfile(),
         AuthStorage.getCachedTimetable(),
       ]);
-      if (cached && cached.firstName) {
+      if (cached && (cached.firstName || cached.studentNo)) {
         setProfile(cached);
+        setIsCached(true);
         setLoading(false);
       }
       if (cachedTimetable && cachedTimetable.length > 0) {
@@ -44,8 +46,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
 
       // 2. Fetch fresh profile and timetable
       const fresh = await obsClient.getProfile();
-      setProfile(fresh);
-      await AuthStorage.saveCachedProfile(fresh);
+      if (fresh) {
+        setProfile(fresh);
+        setIsCached(false);
+        await AuthStorage.saveCachedProfile(fresh);
+      }
 
       const timetable = await obsClient.getTimetable();
       findNextClass(timetable);
@@ -57,6 +62,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       weatherService.getCurrentWeather().then(setCurrentWeather);
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
+      setIsCached(true);
       if (err.message === 'SESSION_EXPIRED') {
         onLogout();
       }
@@ -139,20 +145,35 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {profile?.firstName ? profile.firstName[0] : 'Ö'}
-            {profile?.lastName ? profile.lastName[0] : 'G'}
+            {profile?.firstName ? profile.firstName[0].toUpperCase() : 'Ö'}
+            {profile?.lastName ? profile.lastName[0].toUpperCase() : 'G'}
           </Text>
         </View>
         <View style={styles.profileInfo}>
           <Text style={styles.name}>
-            {profile?.firstName} {profile?.lastName}
+            {profile?.firstName || profile?.lastName
+              ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+              : (profile?.studentNo ? `Öğrenci #${profile.studentNo}` : 'Öğrenci')}
           </Text>
-          <Text style={styles.studentNo}>{profile?.studentNo}</Text>
-          <Text style={styles.dept}>{profile?.department}</Text>
+          <View style={styles.profileSubRow}>
+            <Text style={styles.studentNo}>{profile?.studentNo || 'No Belirtilmedi'}</Text>
+            {isCached ? (
+              <View style={styles.offlinePill}>
+                <Text style={styles.offlinePillText}>⚡ Çevrimdışı</Text>
+              </View>
+            ) : (
+              <View style={styles.livePill}>
+                <Text style={styles.livePillText}>✓ Canlı</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.dept}>{profile?.department || 'OSTİM Teknik Üniversitesi'}</Text>
         </View>
         <View style={styles.gpaBadge}>
           <Text style={styles.gpaLabel}>AGNO</Text>
-          <Text style={styles.gpaValue}>{profile?.gpa.toFixed(2) || '0.00'}</Text>
+          <Text style={styles.gpaValue}>
+            {typeof profile?.gpa === 'number' && !isNaN(profile.gpa) ? profile.gpa.toFixed(2) : '0.00'}
+          </Text>
         </View>
       </View>
 
@@ -310,7 +331,39 @@ const styles = StyleSheet.create({
   studentNo: {
     fontSize: 13,
     color: '#94a3b8',
-    marginBottom: 2,
+  },
+  profileSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 3,
+    marginTop: 1,
+  },
+  offlinePill: {
+    backgroundColor: '#422006',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#78350f',
+  },
+  offlinePillText: {
+    color: '#fbbf24',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  livePill: {
+    backgroundColor: '#064e3b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#065f46',
+  },
+  livePillText: {
+    color: '#6ee7b7',
+    fontSize: 10,
+    fontWeight: '700',
   },
   dept: {
     fontSize: 12,
