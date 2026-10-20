@@ -78,6 +78,10 @@ class UpdateService {
           bestAsset = release.assets.find(
             (asset: any) => asset.name && asset.name.includes('arm64-v8a') && asset.name.endsWith('.apk')
           );
+        } else if (deviceAbi.includes('v7') || deviceAbi.includes('arm')) {
+          bestAsset = release.assets.find(
+            (asset: any) => asset.name && asset.name.includes('armeabi-v7a') && asset.name.endsWith('.apk')
+          );
         }
 
         if (!bestAsset) {
