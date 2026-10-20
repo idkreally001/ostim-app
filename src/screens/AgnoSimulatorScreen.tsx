@@ -17,11 +17,32 @@ interface AgnoSimulatorScreenProps {
   onClose: () => void;
 }
 
-interface SimCourseState {
-  midterm: string;
-  finalExam: string;
-  isBut: boolean;
+export interface EvalComponent {
+  id: string;
+  name: string;
+  weight: number; // percentage (e.g. 40 for 40%)
+  score: string; // string for input (e.g. '75')
+  isFinal?: boolean;
 }
+
+export interface CourseSimState {
+  selectedLetter: string | null; // e.g. 'BA' or null
+  isBut: boolean;
+  isExpanded: boolean;
+  components: EvalComponent[];
+}
+
+const LETTER_SPECS: { letter: string; coeff: number; minScore: number }[] = [
+  { letter: 'AA', coeff: 4.0, minScore: 90 },
+  { letter: 'BA', coeff: 3.5, minScore: 85 },
+  { letter: 'BB', coeff: 3.0, minScore: 80 },
+  { letter: 'CB', coeff: 2.5, minScore: 75 },
+  { letter: 'CC', coeff: 2.0, minScore: 70 },
+  { letter: 'DC', coeff: 1.5, minScore: 60 },
+  { letter: 'DD', coeff: 1.0, minScore: 50 },
+  { letter: 'FD', coeff: 0.5, minScore: 40 },
+  { letter: 'FF', coeff: 0.0, minScore: 0 },
+];
 
 export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClose }) => {
   const { colors } = useTheme();
@@ -31,8 +52,8 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
   const [grades, setGrades] = useState<GradeEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Simulation state: courseCode -> { midterm, finalExam, isBut }
-  const [simulatedScores, setSimulatedScores] = useState<Record<string, SimCourseState>>({});
+  // Simulation state per course code
+  const [simState, setSimState] = useState<Record<string, CourseSimState>>({});
 
   useEffect(() => {
     const initData = async () => {
@@ -42,25 +63,19 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
           AuthStorage.getCachedTerms(),
         ]);
 
-        if (cachedProfile) {
-          setProfile(cachedProfile);
-        }
+        if (cachedProfile) setProfile(cachedProfile);
 
         let activeGrades: GradeEntry[] = [];
         const activeTerm = cachedTerms?.find((t) => t.isActive) || cachedTerms?.[0];
         if (activeTerm) {
           const cached = await AuthStorage.getCachedGrades(activeTerm.termId);
-          if (cached && cached.length > 0) {
-            activeGrades = cached;
-          }
+          if (cached && cached.length > 0) activeGrades = cached;
         }
 
-        // Fresh profile
         obsClient.getProfile().then((p) => {
           if (p) setProfile(p);
         }).catch(() => {});
 
-        // Fresh grades from OBS if not cached
         if (activeGrades.length === 0) {
           const fetched = await obsClient.getGrades().catch(() => []);
           if (fetched && fetched.length > 0) {
@@ -74,7 +89,7 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
           }
         }
 
-        // Fallback: Populate enrolled courses from active timetable if exam list not yet published
+        // Fallback: Populate enrolled courses from active timetable
         if (!activeGrades || activeGrades.length === 0) {
           const timetable =
             (await AuthStorage.getCachedTimetable()) || (await obsClient.getTimetable().catch(() => []));
@@ -100,16 +115,23 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
 
         if (activeGrades && activeGrades.length > 0) {
           setGrades(activeGrades);
-          // Pre-fill initial simulation state with OBS midterms/finals if available
-          const initialSim: Record<string, SimCourseState> = {};
+
+          const initial: Record<string, CourseSimState> = {};
           activeGrades.forEach((g) => {
-            initialSim[g.courseCode] = {
-              midterm: g.midterm !== null && g.midterm !== undefined ? String(g.midterm) : '',
-              finalExam: g.finalExam !== null && g.finalExam !== undefined ? String(g.finalExam) : '',
+            const mVal = g.midterm !== null && g.midterm !== undefined ? String(g.midterm) : '';
+            const fVal = g.finalExam !== null && g.finalExam !== undefined ? String(g.finalExam) : '';
+
+            initial[g.courseCode] = {
+              selectedLetter: g.letterGrade || null,
               isBut: false,
+              isExpanded: false,
+              components: [
+                { id: 'vize', name: 'Vize', weight: 40, score: mVal },
+                { id: 'final', name: 'Final', weight: 60, score: fVal, isFinal: true },
+              ],
             };
           });
-          setSimulatedScores(initialSim);
+          setSimState(initial);
         }
       } catch (err: any) {
         console.warn('AgnoSimulatorScreen load error:', err.message);
@@ -121,128 +143,297 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
     initData();
   }, []);
 
-  const getLetterAndCoeff = (score: number) => {
-    if (score >= 90) return { letter: 'AA', coeff: 4.0, passed: true };
-    if (score >= 85) return { letter: 'BA', coeff: 3.5, passed: true };
-    if (score >= 80) return { letter: 'BB', coeff: 3.0, passed: true };
-    if (score >= 75) return { letter: 'CB', coeff: 2.5, passed: true };
-    if (score >= 70) return { letter: 'CC', coeff: 2.0, passed: true };
-    if (score >= 60) return { letter: 'DC', coeff: 1.5, passed: true };
-    if (score >= 50) return { letter: 'DD', coeff: 1.0, passed: true };
-    if (score >= 40) return { letter: 'FD', coeff: 0.5, passed: false };
-    return { letter: 'FF', coeff: 0.0, passed: false };
+  // Helper: Convert score (0-100) to Letter and Coefficient
+  const scoreToLetter = (score: number) => {
+    for (const spec of LETTER_SPECS) {
+      if (score >= spec.minScore) {
+        return spec;
+      }
+    }
+    return LETTER_SPECS[LETTER_SPECS.length - 1];
   };
 
-  const getBadgeColor = (letter?: string) => {
+  const letterToCoeff = (letter: string) => {
+    const found = LETTER_SPECS.find((s) => s.letter === letter);
+    return found ? found.coeff : 0;
+  };
+
+  const getBadgeColor = (letter?: string | null) => {
     if (!letter) return colors.textMuted;
     if (['AA', 'BA', 'BB', 'CB', 'CC'].includes(letter)) return colors.success;
     if (['DC', 'DD'].includes(letter)) return colors.warning;
     return colors.danger;
   };
 
-  const handleSetMidterm = (courseCode: string, midterm: string) => {
-    setSimulatedScores((prev) => ({
-      ...prev,
-      [courseCode]: {
-        midterm,
-        finalExam: prev[courseCode]?.finalExam || '',
-        isBut: prev[courseCode]?.isBut ?? false,
-      },
-    }));
+  // Calculate detailed average from components
+  const calculateCourseDetail = (sim: CourseSimState) => {
+    let totalWeight = 0;
+    let weightedSum = 0;
+    let filledCount = 0;
+    let finalScore: number | null = null;
+
+    sim.components.forEach((c) => {
+      const s = parseFloat(c.score.trim());
+      if (!isNaN(s) && c.weight > 0) {
+        weightedSum += s * (c.weight / 100);
+        totalWeight += c.weight;
+        filledCount++;
+      }
+      if (c.isFinal && !isNaN(s)) {
+        finalScore = s;
+      }
+    });
+
+    if (filledCount === 0 || totalWeight === 0) {
+      return { avg: null, letter: null, finalScore, totalWeight };
+    }
+
+    // Normalized average if totalWeight != 100
+    const normalizedAvg = (weightedSum / totalWeight) * 100;
+    const letterInfo = scoreToLetter(normalizedAvg);
+    return {
+      avg: normalizedAvg,
+      letter: letterInfo.letter,
+      finalScore,
+      totalWeight,
+    };
   };
 
-  const handleSetFinal = (courseCode: string, finalExam: string) => {
-    setSimulatedScores((prev) => ({
-      ...prev,
-      [courseCode]: {
-        midterm: prev[courseCode]?.midterm || '',
-        finalExam,
-        isBut: prev[courseCode]?.isBut ?? false,
-      },
-    }));
+  // Get current effective letter for a course
+  const getCourseEffectiveLetter = (code: string): string | null => {
+    const sim = simState[code];
+    if (!sim) return null;
+
+    // Check if detailed scores exist
+    const detail = calculateCourseDetail(sim);
+    if (detail.letter !== null) {
+      return detail.letter;
+    }
+
+    // Otherwise use direct letter chip selection
+    return sim.selectedLetter;
   };
 
-  const handleToggleButMode = (courseCode: string) => {
-    setSimulatedScores((prev) => ({
-      ...prev,
-      [courseCode]: {
-        midterm: prev[courseCode]?.midterm || '',
-        finalExam: prev[courseCode]?.finalExam || '',
-        isBut: !prev[courseCode]?.isBut,
-      },
-    }));
-  };
-
-  // Preset 1: Sets BOTH Midterm and Final for all courses (e.g. "Hepsi 85", "Hepsi 100")
-  const handleApplyPresetAllExams = (score: number) => {
-    const next: Record<string, SimCourseState> = {};
-    grades.forEach((g) => {
-      next[g.courseCode] = {
-        midterm: String(score),
-        finalExam: String(score),
-        isBut: simulatedScores[g.courseCode]?.isBut ?? false,
+  // Handlers
+  const handleSelectLetter = (courseCode: string, letter: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      // Toggle if already selected
+      const nextLetter = cur.selectedLetter === letter ? null : letter;
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          selectedLetter: nextLetter,
+        },
       };
     });
-    setSimulatedScores(next);
   };
 
-  // Preset 2: Keeps existing Midterm, sets all Finals
-  const handleApplyPresetFinalsOnly = (score: number) => {
-    const next: Record<string, SimCourseState> = {};
-    grades.forEach((g) => {
-      next[g.courseCode] = {
-        midterm: simulatedScores[g.courseCode]?.midterm ?? (g.midterm ? String(g.midterm) : ''),
-        finalExam: String(score),
-        isBut: simulatedScores[g.courseCode]?.isBut ?? false,
+  const handleToggleExpand = (courseCode: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          isExpanded: !cur.isExpanded,
+        },
       };
     });
-    setSimulatedScores(next);
+  };
+
+  const handleToggleBut = (courseCode: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      const nextBut = !cur.isBut;
+      const updatedComponents = cur.components.map((c) =>
+        c.isFinal ? { ...c, name: nextBut ? 'Büt' : 'Final' } : c
+      );
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          isBut: nextBut,
+          components: updatedComponents,
+        },
+      };
+    });
+  };
+
+  const handleUpdateComponentScore = (courseCode: string, compId: string, score: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      const comps = cur.components.map((c) => (c.id === compId ? { ...c, score } : c));
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          components: comps,
+        },
+      };
+    });
+  };
+
+  const handleUpdateComponentWeight = (courseCode: string, compId: string, weightStr: string) => {
+    const weight = parseFloat(weightStr) || 0;
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      const comps = cur.components.map((c) => (c.id === compId ? { ...c, weight } : c));
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          components: comps,
+        },
+      };
+    });
+  };
+
+  // Apply weight template
+  const handleApplyWeightTemplate = (courseCode: string, template: '40/60' | '30/70' | '30/20/50' | '100proje') => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+
+      let newComps: EvalComponent[] = [];
+      const curFinalScore = cur.components.find((c) => c.isFinal)?.score || '';
+      const curVizeScore = cur.components.find((c) => c.id === 'vize')?.score || '';
+
+      if (template === '40/60') {
+        newComps = [
+          { id: 'vize', name: 'Vize', weight: 40, score: curVizeScore },
+          { id: 'final', name: cur.isBut ? 'Büt' : 'Final', weight: 60, score: curFinalScore, isFinal: true },
+        ];
+      } else if (template === '30/70') {
+        newComps = [
+          { id: 'vize', name: 'Vize', weight: 30, score: curVizeScore },
+          { id: 'final', name: cur.isBut ? 'Büt' : 'Final', weight: 70, score: curFinalScore, isFinal: true },
+        ];
+      } else if (template === '30/20/50') {
+        newComps = [
+          { id: 'vize', name: 'Vize', weight: 30, score: curVizeScore },
+          { id: 'proje', name: 'Proje', weight: 20, score: '' },
+          { id: 'final', name: cur.isBut ? 'Büt' : 'Final', weight: 50, score: curFinalScore, isFinal: true },
+        ];
+      } else if (template === '100proje') {
+        newComps = [
+          { id: 'proje', name: 'Proje / Tez', weight: 100, score: curFinalScore || curVizeScore, isFinal: true },
+        ];
+      }
+
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          components: newComps,
+        },
+      };
+    });
+  };
+
+  const handleAddComponent = (courseCode: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      const newId = `custom_${Date.now()}`;
+      const newComp: EvalComponent = {
+        id: newId,
+        name: `Ödev/Quiz`,
+        weight: 10,
+        score: '',
+      };
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          components: [...cur.components, newComp],
+        },
+      };
+    });
+  };
+
+  const handleRemoveComponent = (courseCode: string, compId: string) => {
+    setSimState((prev) => {
+      const cur = prev[courseCode];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [courseCode]: {
+          ...cur,
+          components: cur.components.filter((c) => c.id !== compId),
+        },
+      };
+    });
+  };
+
+  // Global Presets: Apply letter to all courses
+  const handleApplyPresetAllLetters = (letter: string) => {
+    setSimState((prev) => {
+      const next = { ...prev };
+      grades.forEach((g) => {
+        const cur = next[g.courseCode];
+        if (cur) {
+          next[g.courseCode] = {
+            ...cur,
+            selectedLetter: letter,
+            components: cur.components.map((c) => ({ ...c, score: '' })), // clear component inputs
+          };
+        }
+      });
+      return next;
+    });
+  };
+
+  // Global Presets: Apply raw score to all components
+  const handleApplyPresetAllScores = (score: number) => {
+    setSimState((prev) => {
+      const next = { ...prev };
+      grades.forEach((g) => {
+        const cur = next[g.courseCode];
+        if (cur) {
+          next[g.courseCode] = {
+            ...cur,
+            selectedLetter: null,
+            components: cur.components.map((c) => ({ ...c, score: String(score) })),
+          };
+        }
+      });
+      return next;
+    });
   };
 
   const handleReset = () => {
-    const resetSim: Record<string, SimCourseState> = {};
+    const reset: Record<string, CourseSimState> = {};
     grades.forEach((g) => {
-      resetSim[g.courseCode] = {
-        midterm: g.midterm !== null && g.midterm !== undefined ? String(g.midterm) : '',
-        finalExam: g.finalExam !== null && g.finalExam !== undefined ? String(g.finalExam) : '',
+      reset[g.courseCode] = {
+        selectedLetter: g.letterGrade || null,
         isBut: false,
+        isExpanded: false,
+        components: [
+          { id: 'vize', name: 'Vize', weight: 40, score: g.midterm ? String(g.midterm) : '' },
+          { id: 'final', name: 'Final', weight: 60, score: g.finalExam ? String(g.finalExam) : '', isFinal: true },
+        ],
       };
     });
-    setSimulatedScores(resetSim);
+    setSimState(reset);
   };
 
-  // Calculations
+  // Cumulative AGNO Calculations
   let termAktsTotal = 0;
   let termWeightedPoints = 0;
 
   grades.forEach((item) => {
     const akts = item.akts > 0 ? item.akts : item.credits > 0 ? item.credits : 5;
-    const sim = simulatedScores[item.courseCode];
+    const letter = getCourseEffectiveLetter(item.courseCode);
 
-    const mStr = sim?.midterm?.trim() ?? '';
-    const fStr = sim?.finalExam?.trim() ?? '';
-
-    const hasM = mStr !== '';
-    const hasF = fStr !== '';
-
-    let courseAvg: number | null = null;
-
-    if (hasM && hasF) {
-      const m = parseFloat(mStr);
-      const f = parseFloat(fStr);
-      if (!isNaN(m) && !isNaN(f)) {
-        courseAvg = m * 0.4 + f * 0.6;
-      }
-    } else if (hasF && !hasM) {
-      // Only final is simulated: treat as overall course target grade
-      const f = parseFloat(fStr);
-      if (!isNaN(f)) {
-        courseAvg = f;
-      }
-    }
-
-    if (courseAvg !== null && !isNaN(courseAvg)) {
-      const { coeff } = getLetterAndCoeff(courseAvg);
+    if (letter) {
+      const coeff = letterToCoeff(letter);
       termWeightedPoints += coeff * akts;
       termAktsTotal += akts;
     }
@@ -251,9 +442,8 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
   const hasSimulatedEntries = termAktsTotal > 0;
   const simulatedAno = hasSimulatedEntries ? termWeightedPoints / termAktsTotal : 0;
 
-  // Cumulative CGPA calculation
   const currentCgpa = typeof profile?.gpa === 'number' && !isNaN(profile.gpa) ? profile.gpa : 0;
-  const estimatedPastAkts = 60; // 2 semesters baseline
+  const estimatedPastAkts = 60; // 2 completed semesters baseline (~30 AKTS/semester)
   const projectedCgpa =
     hasSimulatedEntries && currentCgpa > 0
       ? (currentCgpa * estimatedPastAkts + termWeightedPoints) / (estimatedPastAkts + termAktsTotal)
@@ -280,7 +470,7 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          {/* Cumulative Projected CGPA Card */}
+          {/* Cumulative Projected CGPA Hero Card */}
           <View style={styles.heroCard}>
             <Text style={styles.heroCardSub}>KÜMÜLATİF AKADEMİK ETKİ</Text>
             <View style={styles.heroStatsRow}>
@@ -307,7 +497,7 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
                       Dönem ANO: <Text style={styles.anoPillBold}>{simulatedAno.toFixed(2)}</Text> ({termAktsTotal} AKTS)
                     </>
                   ) : (
-                    'Not girerek dönemi simüle edin'
+                    'Harf seçerek veya not girerek simüle edin'
                   )}
                 </Text>
               </View>
@@ -331,32 +521,31 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
             </View>
           </View>
 
-          {/* Quick Scenario Chips */}
+          {/* Quick Presets Box */}
           <View style={styles.presetsContainer}>
-            <Text style={styles.presetsLabel}>TÜM DERSLERİ AYARLA (VİZE + FİNAL)</Text>
+            <Text style={styles.presetsLabel}>TÜM DERSLERİ HIZLI AYARLA</Text>
             <View style={styles.presetsRow}>
-              {[60, 70, 85, 100].map((preset) => (
+              {['AA', 'BA', 'BB', 'CB', 'CC'].map((presetLetter) => (
                 <TouchableOpacity
-                  key={`all-${preset}`}
+                  key={`preset-letter-${presetLetter}`}
                   style={styles.presetChip}
-                  onPress={() => handleApplyPresetAllExams(preset)}
+                  onPress={() => handleApplyPresetAllLetters(presetLetter)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.presetChipText}>Hepsi {preset}</Text>
+                  <Text style={styles.presetChipText}>{presetLetter}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.presetsLabel, { marginTop: 10 }]}>SADECE FİNALLERİ AYARLA</Text>
-            <View style={styles.presetsRow}>
-              {[50, 65, 80, 100].map((preset) => (
+            <View style={[styles.presetsRow, { marginTop: 8 }]}>
+              {[100, 85, 75, 65].map((presetScore) => (
                 <TouchableOpacity
-                  key={`final-${preset}`}
+                  key={`preset-score-${presetScore}`}
                   style={[styles.presetChip, styles.presetChipOutline]}
-                  onPress={() => handleApplyPresetFinalsOnly(preset)}
+                  onPress={() => handleApplyPresetAllScores(presetScore)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.presetChipOutlineText}>Final {preset}</Text>
+                  <Text style={styles.presetChipOutlineText}>Puan {presetScore}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -364,7 +553,7 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
 
           {/* Course Simulation List */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Dersler & Not Girişi</Text>
+            <Text style={styles.sectionTitle}>Dersler & Hedef Harfler</Text>
             <Text style={styles.courseCountText}>{grades.length} Ders</Text>
           </View>
 
@@ -374,39 +563,21 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
             </View>
           ) : (
             grades.map((item, idx) => {
-              const sim = simulatedScores[item.courseCode] || { midterm: '', finalExam: '', isBut: false };
-              const mStr = sim.midterm;
-              const fStr = sim.finalExam;
-              const isBut = sim.isBut;
+              const sim = simState[item.courseCode] || {
+                selectedLetter: null,
+                isBut: false,
+                isExpanded: false,
+                components: [],
+              };
 
-              const hasM = mStr.trim() !== '';
-              const hasF = fStr.trim() !== '';
-
-              let calcAvg: number | null = null;
-              if (hasM && hasF) {
-                const m = parseFloat(mStr);
-                const f = parseFloat(fStr);
-                if (!isNaN(m) && !isNaN(f)) {
-                  calcAvg = m * 0.4 + f * 0.6;
-                }
-              } else if (hasF && !hasM) {
-                const f = parseFloat(fStr);
-                if (!isNaN(f)) {
-                  calcAvg = f;
-                }
-              }
-
-              const letterInfo = calcAvg !== null ? getLetterAndCoeff(calcAvg) : null;
-              const badgeBg = letterInfo ? getBadgeColor(letterInfo.letter) : colors.textMuted;
-
-              // Pass threshold based on Midterm:
-              // Final must be >= 50 and avg >= 50
-              const mNum = hasM ? parseFloat(mStr) : null;
-              const req50 = mNum !== null && !isNaN(mNum) ? Math.max(50, Math.ceil((50 - mNum * 0.4) / 0.6)) : 50;
-              const reqCC = mNum !== null && !isNaN(mNum) ? Math.max(50, Math.ceil((70 - mNum * 0.4) / 0.6)) : 70;
+              const detail = calculateCourseDetail(sim);
+              const effectiveLetter = detail.letter || sim.selectedLetter;
+              const badgeBg = getBadgeColor(effectiveLetter);
+              const isDetailedActive = detail.avg !== null;
 
               return (
                 <View key={`${item.courseCode}-${idx}`} style={styles.courseCard}>
+                  {/* Course Header */}
                   <View style={styles.courseHeader}>
                     <View style={styles.courseTitles}>
                       <Text style={styles.courseName}>{item.courseName}</Text>
@@ -414,87 +585,170 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
                         {item.courseCode} • {item.akts} AKTS
                       </Text>
                     </View>
-                    {letterInfo ? (
+                    {effectiveLetter ? (
                       <View style={[styles.letterBadge, { backgroundColor: badgeBg }]}>
-                        <Text style={styles.letterText}>{letterInfo.letter}</Text>
+                        <Text style={styles.letterText}>{effectiveLetter}</Text>
                       </View>
                     ) : null}
                   </View>
 
-                  <View style={styles.scoresRow}>
-                    {/* Midterm Input */}
-                    <View style={styles.scoreCol}>
-                      <Text style={styles.scoreLabel}>VİZE (%40)</Text>
-                      <TextInput
-                        style={styles.scoreInput}
-                        placeholder={item.midterm !== null && item.midterm !== undefined ? String(item.midterm) : 'Not'}
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="numeric"
-                        value={mStr}
-                        onChangeText={(txt) => handleSetMidterm(item.courseCode, txt)}
-                      />
-                    </View>
-
-                    {/* Final / Büt Input */}
-                    <View style={styles.scoreCol}>
-                      <Text style={styles.scoreLabel}>{isBut ? 'BÜT (%60)' : 'FİNAL (%60)'}</Text>
-                      <TextInput
-                        style={styles.scoreInput}
-                        placeholder={item.finalExam !== null && item.finalExam !== undefined ? String(item.finalExam) : 'Not'}
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="numeric"
-                        value={fStr}
-                        onChangeText={(txt) => handleSetFinal(item.courseCode, txt)}
-                      />
-                    </View>
-
-                    {/* Average Output */}
-                    <View style={styles.scoreCol}>
-                      <Text style={styles.scoreLabel}>ORTALAMA</Text>
-                      <Text style={[styles.scoreVal, { color: calcAvg !== null ? colors.primary : colors.textMuted }]}>
-                        {calcAvg !== null ? calcAvg.toFixed(1) : '-'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Mode switcher and Quick Chips */}
-                  <View style={styles.cardActionsRow}>
-                    <TouchableOpacity
-                      style={[styles.examModeBtn, isBut && styles.examModeBtnActive]}
-                      onPress={() => handleToggleButMode(item.courseCode)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.examModeBtnText, isBut && styles.examModeBtnTextActive]}>
-                        {isBut ? '🔁 Büt Modu' : '📝 Final Modu'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.quickChipsGroup}>
-                      {[50, 70, 85, 100].map((quick) => (
+                  {/* Primary View: Quick Letter Selector Chips */}
+                  <View style={styles.letterChipsRow}>
+                    {LETTER_SPECS.map((spec) => {
+                      const isSelected = effectiveLetter === spec.letter;
+                      return (
                         <TouchableOpacity
-                          key={quick}
-                          style={styles.quickChip}
-                          onPress={() => handleSetFinal(item.courseCode, String(quick))}
+                          key={spec.letter}
+                          style={[
+                            styles.letterChip,
+                            isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          ]}
+                          onPress={() => handleSelectLetter(item.courseCode, spec.letter)}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.quickChipText}>{quick}</Text>
+                          <Text
+                            style={[
+                              styles.letterChipText,
+                              isSelected && { color: '#ffffff', fontWeight: '900' },
+                            ]}
+                          >
+                            {spec.letter}
+                          </Text>
                         </TouchableOpacity>
-                      ))}
-                    </View>
+                      );
+                    })}
                   </View>
 
-                  {/* Warning and Guidance Hints */}
-                  {hasF && parseFloat(fStr) < 50 ? (
+                  {/* Detailed Breakdown Toggle */}
+                  <TouchableOpacity
+                    style={styles.expandToggleRow}
+                    onPress={() => handleToggleExpand(item.courseCode)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.expandToggleText}>
+                      {sim.isExpanded
+                        ? '▲ Sınav & Proje Ağırlıklarını Gizle'
+                        : isDetailedActive
+                        ? `▼ Ağırlıklı Ortalama: ${detail.avg?.toFixed(1)} (${detail.totalWeight}% Ağırlık) ⚙️`
+                        : '⚙️ Sınav, Proje & Ağırlık Dağılımı Detayı ▼'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Expandable Section: Customizable Components & Templates */}
+                  {sim.isExpanded && (
+                    <View style={styles.expandedSection}>
+                      {/* Weight Templates */}
+                      <Text style={styles.subSectionTitle}>AĞIRLIK ŞABLONU SEÇ</Text>
+                      <View style={styles.templateRow}>
+                        <TouchableOpacity
+                          style={styles.templateBtn}
+                          onPress={() => handleApplyWeightTemplate(item.courseCode, '40/60')}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.templateBtnText}>40 / 60</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.templateBtn}
+                          onPress={() => handleApplyWeightTemplate(item.courseCode, '30/70')}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.templateBtnText}>30 / 70</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.templateBtn}
+                          onPress={() => handleApplyWeightTemplate(item.courseCode, '30/20/50')}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.templateBtnText}>30/20/50 (Proje)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.templateBtn}
+                          onPress={() => handleApplyWeightTemplate(item.courseCode, '100proje')}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.templateBtnText}>%100 Proje</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Component Rows */}
+                      <View style={styles.compList}>
+                        <View style={styles.compHeaderRow}>
+                          <Text style={[styles.compHeaderLabel, { flex: 2 }]}>Bileşen Adı</Text>
+                          <Text style={[styles.compHeaderLabel, { flex: 1.2, textAlign: 'center' }]}>Ağırlık %</Text>
+                          <Text style={[styles.compHeaderLabel, { flex: 1.5, textAlign: 'center' }]}>Not (0-100)</Text>
+                          <View style={{ width: 28 }} />
+                        </View>
+
+                        {sim.components.map((comp) => (
+                          <View key={comp.id} style={styles.compRow}>
+                            <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={styles.compNameText} numberOfLines={1}>
+                                {comp.name}
+                              </Text>
+                              {comp.isFinal && (
+                                <TouchableOpacity
+                                  style={styles.inlineButToggle}
+                                  onPress={() => handleToggleBut(item.courseCode)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={styles.inlineButToggleText}>{sim.isBut ? '🔁 Büt' : '📝 Fin'}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+
+                            <TextInput
+                              style={[styles.compInput, { flex: 1.2, marginHorizontal: 4 }]}
+                              keyboardType="numeric"
+                              value={String(comp.weight)}
+                              onChangeText={(txt) => handleUpdateComponentWeight(item.courseCode, comp.id, txt)}
+                            />
+
+                            <TextInput
+                              style={[styles.compInput, { flex: 1.5 }]}
+                              placeholder="Not"
+                              placeholderTextColor={colors.textMuted}
+                              keyboardType="numeric"
+                              value={comp.score}
+                              onChangeText={(txt) => handleUpdateComponentScore(item.courseCode, comp.id, txt)}
+                            />
+
+                            {!comp.isFinal && comp.id !== 'vize' ? (
+                              <TouchableOpacity
+                                style={styles.removeCompBtn}
+                                onPress={() => handleRemoveComponent(item.courseCode, comp.id)}
+                              >
+                                <Text style={styles.removeCompBtnText}>✕</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={{ width: 28 }} />
+                            )}
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* Add Component Button */}
+                      <TouchableOpacity
+                        style={styles.addCompBtn}
+                        onPress={() => handleAddComponent(item.courseCode)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.addCompBtnText}>+ Ödev / Quiz / Lab Ekle</Text>
+                      </TouchableOpacity>
+
+                      {/* Weight Warning if != 100 */}
+                      {detail.totalWeight > 0 && detail.totalWeight !== 100 && (
+                        <Text style={styles.weightWarningText}>
+                          ℹ️ Toplam ağırlık %{detail.totalWeight} (100'e normalize edildi)
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Warning if Final is entered and < 50 */}
+                  {detail.finalScore !== null && detail.finalScore < 50 ? (
                     <View style={styles.warningBox}>
                       <Text style={styles.warningText}>
-                        ⚠️ Final notu 50'nin altında. Üniversite barajı gereği en az 50 almalısınız.
-                      </Text>
-                    </View>
-                  ) : hasM && !hasF ? (
-                    <View style={styles.reqHintRow}>
-                      <Text style={styles.reqHintText}>
-                        🎯 Geçmek için: min <Text style={styles.reqHintBold}>{req50}</Text> • CC için min{' '}
-                        <Text style={styles.reqHintBold}>{reqCC}</Text>
+                        ⚠️ Final/Büt notu 50'nin altında. Üniversite barajı gereği en az 50 almalısınız.
                       </Text>
                     </View>
                   ) : null}
@@ -559,7 +813,7 @@ const getSimulatorStyles = (colors: ThemeColors) =>
     },
     content: {
       padding: 16,
-      paddingBottom: 32,
+      paddingBottom: 36,
       gap: 14,
     },
     heroCard: {
@@ -661,7 +915,7 @@ const getSimulatorStyles = (colors: ThemeColors) =>
     },
     presetsRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: 6,
     },
     presetChip: {
       flex: 1,
@@ -674,8 +928,8 @@ const getSimulatorStyles = (colors: ThemeColors) =>
     },
     presetChipText: {
       color: colors.primary,
-      fontSize: 11,
-      fontWeight: '700',
+      fontSize: 12,
+      fontWeight: '800',
     },
     presetChipOutline: {
       backgroundColor: colors.cardAlt,
@@ -751,83 +1005,147 @@ const getSimulatorStyles = (colors: ThemeColors) =>
       fontWeight: '800',
       fontSize: 12,
     },
-    scoresRow: {
+    letterChipsRow: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 4,
+    },
+    letterChip: {
+      flex: 1,
+      paddingVertical: 7,
+      borderRadius: 8,
+      backgroundColor: colors.cardAlt,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    letterChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    expandToggleRow: {
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    expandToggleText: {
+      fontSize: 11,
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    expandedSection: {
       backgroundColor: colors.cardAlt,
       borderRadius: 14,
-      padding: 10,
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      padding: 12,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    scoreCol: {
-      alignItems: 'center',
-      flex: 1,
-    },
-    scoreLabel: {
-      color: colors.textMuted,
+    subSectionTitle: {
       fontSize: 9,
       fontWeight: '800',
+      color: colors.textMuted,
       letterSpacing: 0.5,
-      marginBottom: 4,
     },
-    scoreVal: {
-      fontSize: 15,
+    templateRow: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    templateBtn: {
+      flex: 1,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    templateBtnText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    compList: {
+      gap: 6,
+    },
+    compHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 2,
+    },
+    compHeaderLabel: {
+      fontSize: 9,
       fontWeight: '800',
+      color: colors.textMuted,
+      letterSpacing: 0.5,
     },
-    scoreInput: {
-      height: 34,
-      minWidth: 58,
+    compRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    compNameText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+    },
+    inlineButToggle: {
+      backgroundColor: colors.card,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      marginRight: 4,
+    },
+    inlineButToggleText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    compInput: {
+      height: 32,
       textAlign: 'center',
       backgroundColor: colors.card,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.primary,
       color: colors.text,
+      fontSize: 13,
+      fontWeight: '700',
+      paddingVertical: 2,
+      paddingHorizontal: 4,
+    },
+    removeCompBtn: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeCompBtnText: {
+      color: colors.danger,
       fontSize: 14,
       fontWeight: '800',
-      paddingVertical: 2,
-      paddingHorizontal: 6,
     },
-    cardActionsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    examModeBtn: {
-      paddingHorizontal: 10,
-      paddingVertical: 5,
+    addCompBtn: {
+      paddingVertical: 6,
       borderRadius: 8,
-      backgroundColor: colors.cardAlt,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+      borderStyle: 'dashed',
+      alignItems: 'center',
     },
-    examModeBtnActive: {
-      backgroundColor: colors.primarySubtle,
-      borderColor: colors.primary,
-    },
-    examModeBtnText: {
-      color: colors.textSecondary,
-      fontSize: 11,
-      fontWeight: '600',
-    },
-    examModeBtnTextActive: {
-      color: colors.primary,
-      fontWeight: '700',
-    },
-    quickChipsGroup: {
-      flexDirection: 'row',
-      gap: 6,
-    },
-    quickChip: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-      backgroundColor: colors.cardAlt,
-    },
-    quickChipText: {
-      color: colors.primary,
+    addCompBtnText: {
       fontSize: 11,
       fontWeight: '700',
+      color: colors.primary,
+    },
+    weightWarningText: {
+      fontSize: 10,
+      color: colors.warning,
+      fontStyle: 'italic',
+      textAlign: 'center',
     },
     warningBox: {
       backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -841,16 +1159,5 @@ const getSimulatorStyles = (colors: ThemeColors) =>
       color: colors.danger,
       fontSize: 11,
       fontWeight: '600',
-    },
-    reqHintRow: {
-      paddingHorizontal: 4,
-    },
-    reqHintText: {
-      fontSize: 11,
-      color: colors.textSecondary,
-    },
-    reqHintBold: {
-      color: colors.text,
-      fontWeight: '700',
     },
   });
