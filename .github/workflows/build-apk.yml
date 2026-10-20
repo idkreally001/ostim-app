@@ -68,8 +68,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: build-artifacts/ostim-app-release.apk
-          name: Ostim Mobile ${{ github.ref_name || github.event.inputs.tag_name }}
-          tag_name: ${{ github.ref_name || github.event.inputs.tag_name }}
+          name: Ostim Mobile ${{ inputs.tag_name || github.ref_name }}
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
           generate_release_notes: true
           draft: false
           prerelease: false
