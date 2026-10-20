@@ -1,7 +1,7 @@
 import { Linking, Platform } from 'react-native';
 import { logService } from './logService';
 
-export const CURRENT_APP_VERSION = '1.0.1';
+export const CURRENT_APP_VERSION = '1.0.2';
 export const GITHUB_REPO = 'idkreally001/ostim-app';
 
 export interface UpdateInfo {

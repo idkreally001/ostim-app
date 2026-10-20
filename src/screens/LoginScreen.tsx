@@ -28,6 +28,7 @@ interface LoginScreenProps {
   onObsLoginSuccess: () => void;
   onLmsLoginSuccess: () => void;
   onContinueToPortal?: (portal: 'obs' | 'lms') => void;
+  onOpenSettings?: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -37,6 +38,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onObsLoginSuccess,
   onLmsLoginSuccess,
   onContinueToPortal,
+  onOpenSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<'obs' | 'lms'>(initialPortal);
 
@@ -172,6 +174,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         {/* Header Branding */}
         <View style={styles.brandingContainer}>
+          {onOpenSettings ? (
+            <TouchableOpacity
+              style={styles.loginSettingsBtn}
+              onPress={onOpenSettings}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.loginSettingsIcon}>⚙️</Text>
+            </TouchableOpacity>
+          ) : null}
           <View style={styles.logoBadge}>
             <Text style={styles.logoBadgeText}>OSTİM TEKNİK</Text>
           </View>
@@ -485,6 +496,22 @@ const styles = StyleSheet.create({
   brandingContainer: {
     alignItems: 'center',
     marginBottom: 20,
+    width: '100%',
+    position: 'relative',
+  },
+  loginSettingsBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 4,
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    zIndex: 10,
+  },
+  loginSettingsIcon: {
+    fontSize: 16,
   },
   logoBadge: {
     backgroundColor: '#1d4ed8',

@@ -24,6 +24,7 @@ import { GradesScreen } from './src/screens/GradesScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
 import { LmsScreen } from './src/screens/LmsScreen';
 import { LogsScreen } from './src/screens/LogsScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { updateService, UpdateInfo } from './src/services/updateService';
 import { UpdateModal } from './src/components/UpdateModal';
 
@@ -37,6 +38,7 @@ export default function App() {
   const [isObsAuthenticated, setIsObsAuthenticated] = useState(false);
   const [isLmsAuthenticated, setIsLmsAuthenticated] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
@@ -194,7 +196,24 @@ export default function App() {
             setActivePortal('lms');
           }}
           onContinueToPortal={(p) => setActivePortal(p)}
+          onOpenSettings={() => setShowSettings(true)}
         />
+
+        {/* Settings Modal (available even before logging in) */}
+        <Modal
+          visible={showSettings}
+          animationType="slide"
+          onRequestClose={() => setShowSettings(false)}
+        >
+          <SafeAreaView style={styles.safeArea}>
+            <StatusBar style="light" />
+            <SettingsScreen
+              onClose={() => setShowSettings(false)}
+              isObsAuthenticated={false}
+              isLmsAuthenticated={false}
+            />
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -273,27 +292,36 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Right Logout Button (for active portal if authenticated) */}
-        {isCurrentPortalAuthed ? (
+        {/* Right Header Actions: Quick Logout & Settings Gear */}
+        <View style={styles.headerRightGroup}>
+          {isCurrentPortalAuthed ? (
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={() => {
+                if (isObsAuthenticated && isLmsAuthenticated) {
+                  setShowLogoutModal(true);
+                } else if (activePortal === 'obs') {
+                  handleObsLogout();
+                } else {
+                  handleLmsLogout();
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.logoutBtnText}>
+                🚪 {activePortal === 'obs' ? 'OBS' : 'LMS'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={() => {
-              if (isObsAuthenticated && isLmsAuthenticated) {
-                setShowLogoutModal(true);
-              } else if (activePortal === 'obs') {
-                handleObsLogout();
-              } else {
-                handleLmsLogout();
-              }
-            }}
+            style={styles.settingsHeaderBtn}
+            onPress={() => setShowSettings(true)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.logoutBtnText}>
-              🚪 {activePortal === 'obs' ? 'OBS Çıkış' : 'LMS Çıkış'}
-            </Text>
+            <Text style={styles.settingsHeaderIcon}>⚙️</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={styles.headerRightPlaceholder} />
-        )}
+        </View>
       </View>
 
       {/* Main Content Area */}
@@ -482,6 +510,34 @@ export default function App() {
         updateInfo={updateInfo}
         onDismiss={() => setShowUpdateModal(false)}
       />
+
+      {/* Settings & About Modal */}
+      <Modal
+        visible={showSettings}
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar style="light" />
+          <SettingsScreen
+            onClose={() => setShowSettings(false)}
+            isObsAuthenticated={isObsAuthenticated}
+            isLmsAuthenticated={isLmsAuthenticated}
+            onObsLogout={() => {
+              setShowSettings(false);
+              handleObsLogout();
+            }}
+            onLmsLogout={() => {
+              setShowSettings(false);
+              handleLmsLogout();
+            }}
+            onFullLogout={() => {
+              setShowSettings(false);
+              handleFullLogout();
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -558,8 +614,13 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   logoutBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
     backgroundColor: '#1e293b',
@@ -568,11 +629,18 @@ const styles = StyleSheet.create({
   },
   logoutBtnText: {
     color: '#f87171',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
-  headerRightPlaceholder: {
-    width: 48,
+  settingsHeaderBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  settingsHeaderIcon: {
+    fontSize: 15,
   },
   content: {
     flex: 1,
