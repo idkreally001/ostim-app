@@ -10,11 +10,17 @@ import {
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
-import { GradeEntry, SemesterTerm, StudentProfile } from '../types/models';
+import { GradeEntry, StudentProfile } from '../types/models';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 interface AgnoSimulatorScreenProps {
   onClose: () => void;
+}
+
+interface SimCourseState {
+  midterm: string;
+  finalExam: string;
+  isBut: boolean;
 }
 
 export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClose }) => {
@@ -25,9 +31,8 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
   const [grades, setGrades] = useState<GradeEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Simulation state: record of courseCode -> { score: string, isBut: boolean }
-  const [simulatedScores, setSimulatedScores] = useState<Record<string, { score: string; isBut: boolean }>>({});
-  const [targetAgno, setTargetAgno] = useState<number | null>(null);
+  // Simulation state: courseCode -> { midterm, finalExam, isBut }
+  const [simulatedScores, setSimulatedScores] = useState<Record<string, SimCourseState>>({});
 
   useEffect(() => {
     const initData = async () => {
@@ -41,30 +46,35 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
           setProfile(cachedProfile);
         }
 
+        let activeGrades: GradeEntry[] = [];
         const activeTerm = cachedTerms?.find((t) => t.isActive) || cachedTerms?.[0];
         if (activeTerm) {
-          const cachedGrades = await AuthStorage.getCachedGrades(activeTerm.termId);
-          if (cachedGrades && cachedGrades.length > 0) {
-            setGrades(cachedGrades);
-            setLoading(false);
+          const cached = await AuthStorage.getCachedGrades(activeTerm.termId);
+          if (cached && cached.length > 0) {
+            activeGrades = cached;
           }
         }
 
-        // Fetch fresh profile
-        const freshProfile = await obsClient.getProfile().catch(() => null);
-        if (freshProfile) setProfile(freshProfile);
+        // Fresh profile
+        obsClient.getProfile().then((p) => {
+          if (p) setProfile(p);
+        }).catch(() => {});
 
-        // Fetch grades directly from OBS
-        let activeGrades = await obsClient.getGrades().catch(() => []);
-        if (!activeGrades || activeGrades.length === 0) {
-          const terms = await obsClient.getTerms().catch(() => []);
-          const curTerm = terms.find((t) => t.isActive) || terms[0];
-          if (curTerm) {
-            activeGrades = await obsClient.getGrades(curTerm.termId).catch(() => []);
+        // Fresh grades from OBS if not cached
+        if (activeGrades.length === 0) {
+          const fetched = await obsClient.getGrades().catch(() => []);
+          if (fetched && fetched.length > 0) {
+            activeGrades = fetched;
+          } else {
+            const terms = await obsClient.getTerms().catch(() => []);
+            const curTerm = terms.find((t) => t.isActive) || terms[0];
+            if (curTerm) {
+              activeGrades = await obsClient.getGrades(curTerm.termId).catch(() => []);
+            }
           }
         }
 
-        // Fallback: If term exam records are not yet published in OBS, populate from active timetable
+        // Fallback: Populate enrolled courses from active timetable if exam list not yet published
         if (!activeGrades || activeGrades.length === 0) {
           const timetable =
             (await AuthStorage.getCachedTimetable()) || (await obsClient.getTimetable().catch(() => []));
@@ -90,6 +100,16 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
 
         if (activeGrades && activeGrades.length > 0) {
           setGrades(activeGrades);
+          // Pre-fill initial simulation state with OBS midterms/finals if available
+          const initialSim: Record<string, SimCourseState> = {};
+          activeGrades.forEach((g) => {
+            initialSim[g.courseCode] = {
+              midterm: g.midterm !== null && g.midterm !== undefined ? String(g.midterm) : '',
+              finalExam: g.finalExam !== null && g.finalExam !== undefined ? String(g.finalExam) : '',
+              isBut: false,
+            };
+          });
+          setSimulatedScores(initialSim);
         }
       } catch (err: any) {
         console.warn('AgnoSimulatorScreen load error:', err.message);
@@ -120,10 +140,25 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
     return colors.danger;
   };
 
-  const handleSetCourseScore = (courseCode: string, score: string, isBut = false) => {
+  const handleSetMidterm = (courseCode: string, midterm: string) => {
     setSimulatedScores((prev) => ({
       ...prev,
-      [courseCode]: { score, isBut: isBut || (prev[courseCode]?.isBut ?? false) },
+      [courseCode]: {
+        midterm,
+        finalExam: prev[courseCode]?.finalExam || '',
+        isBut: prev[courseCode]?.isBut ?? false,
+      },
+    }));
+  };
+
+  const handleSetFinal = (courseCode: string, finalExam: string) => {
+    setSimulatedScores((prev) => ({
+      ...prev,
+      [courseCode]: {
+        midterm: prev[courseCode]?.midterm || '',
+        finalExam,
+        isBut: prev[courseCode]?.isBut ?? false,
+      },
     }));
   };
 
@@ -131,17 +166,33 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
     setSimulatedScores((prev) => ({
       ...prev,
       [courseCode]: {
-        score: prev[courseCode]?.score || '',
+        midterm: prev[courseCode]?.midterm || '',
+        finalExam: prev[courseCode]?.finalExam || '',
         isBut: !prev[courseCode]?.isBut,
       },
     }));
   };
 
-  const handleApplyPresetAll = (score: number) => {
-    const next: Record<string, { score: string; isBut: boolean }> = {};
+  // Preset 1: Sets BOTH Midterm and Final for all courses (e.g. "Hepsi 85", "Hepsi 100")
+  const handleApplyPresetAllExams = (score: number) => {
+    const next: Record<string, SimCourseState> = {};
     grades.forEach((g) => {
       next[g.courseCode] = {
-        score: String(score),
+        midterm: String(score),
+        finalExam: String(score),
+        isBut: simulatedScores[g.courseCode]?.isBut ?? false,
+      };
+    });
+    setSimulatedScores(next);
+  };
+
+  // Preset 2: Keeps existing Midterm, sets all Finals
+  const handleApplyPresetFinalsOnly = (score: number) => {
+    const next: Record<string, SimCourseState> = {};
+    grades.forEach((g) => {
+      next[g.courseCode] = {
+        midterm: simulatedScores[g.courseCode]?.midterm ?? (g.midterm ? String(g.midterm) : ''),
+        finalExam: String(score),
         isBut: simulatedScores[g.courseCode]?.isBut ?? false,
       };
     });
@@ -149,8 +200,15 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
   };
 
   const handleReset = () => {
-    setSimulatedScores({});
-    setTargetAgno(null);
+    const resetSim: Record<string, SimCourseState> = {};
+    grades.forEach((g) => {
+      resetSim[g.courseCode] = {
+        midterm: g.midterm !== null && g.midterm !== undefined ? String(g.midterm) : '',
+        finalExam: g.finalExam !== null && g.finalExam !== undefined ? String(g.finalExam) : '',
+        isBut: false,
+      };
+    });
+    setSimulatedScores(resetSim);
   };
 
   // Calculations
@@ -159,19 +217,32 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
 
   grades.forEach((item) => {
     const akts = item.akts > 0 ? item.akts : item.credits > 0 ? item.credits : 5;
-    const midtermNum = typeof item.midterm === 'number' ? item.midterm : parseFloat(item.midterm || '0');
-
     const sim = simulatedScores[item.courseCode];
-    const finalScoreNum =
-      sim?.score !== undefined && sim.score !== ''
-        ? parseFloat(sim.score)
-        : typeof item.finalExam === 'number'
-        ? item.finalExam
-        : parseFloat(item.finalExam || '0');
 
-    if (midtermNum > 0 || finalScoreNum > 0) {
-      const avg = midtermNum * 0.4 + finalScoreNum * 0.6;
-      const { coeff } = getLetterAndCoeff(avg);
+    const mStr = sim?.midterm?.trim() ?? '';
+    const fStr = sim?.finalExam?.trim() ?? '';
+
+    const hasM = mStr !== '';
+    const hasF = fStr !== '';
+
+    let courseAvg: number | null = null;
+
+    if (hasM && hasF) {
+      const m = parseFloat(mStr);
+      const f = parseFloat(fStr);
+      if (!isNaN(m) && !isNaN(f)) {
+        courseAvg = m * 0.4 + f * 0.6;
+      }
+    } else if (hasF && !hasM) {
+      // Only final is simulated: treat as overall course target grade
+      const f = parseFloat(fStr);
+      if (!isNaN(f)) {
+        courseAvg = f;
+      }
+    }
+
+    if (courseAvg !== null && !isNaN(courseAvg)) {
+      const { coeff } = getLetterAndCoeff(courseAvg);
       termWeightedPoints += coeff * akts;
       termAktsTotal += akts;
     }
@@ -181,8 +252,6 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
   const simulatedAno = hasSimulatedEntries ? termWeightedPoints / termAktsTotal : 0;
 
   // Cumulative CGPA calculation
-  // Typical student has ~30 AKTS per completed semester
-  // If student is 4th semester, completed ~90 AKTS. We estimate based on term ID or default 60 AKTS
   const currentCgpa = typeof profile?.gpa === 'number' && !isNaN(profile.gpa) ? profile.gpa : 0;
   const estimatedPastAkts = 60; // 2 semesters baseline
   const projectedCgpa =
@@ -262,21 +331,35 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
             </View>
           </View>
 
-          {/* Goal Seek / Quick Presets */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Hızlı Senaryo Çipleri</Text>
-          </View>
-          <View style={styles.presetsRow}>
-            {[50, 65, 75, 85].map((preset) => (
-              <TouchableOpacity
-                key={preset}
-                style={styles.presetChip}
-                onPress={() => handleApplyPresetAll(preset)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.presetChipText}>Hepsi {preset}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* Quick Scenario Chips */}
+          <View style={styles.presetsContainer}>
+            <Text style={styles.presetsLabel}>TÜM DERSLERİ AYARLA (VİZE + FİNAL)</Text>
+            <View style={styles.presetsRow}>
+              {[60, 70, 85, 100].map((preset) => (
+                <TouchableOpacity
+                  key={`all-${preset}`}
+                  style={styles.presetChip}
+                  onPress={() => handleApplyPresetAllExams(preset)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.presetChipText}>Hepsi {preset}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.presetsLabel, { marginTop: 10 }]}>SADECE FİNALLERİ AYARLA</Text>
+            <View style={styles.presetsRow}>
+              {[50, 65, 80, 100].map((preset) => (
+                <TouchableOpacity
+                  key={`final-${preset}`}
+                  style={[styles.presetChip, styles.presetChipOutline]}
+                  onPress={() => handleApplyPresetFinalsOnly(preset)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.presetChipOutlineText}>Final {preset}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Course Simulation List */}
@@ -291,18 +374,36 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
             </View>
           ) : (
             grades.map((item, idx) => {
-              const midtermNum = typeof item.midterm === 'number' ? item.midterm : parseFloat(item.midterm || '0');
-              const sim = simulatedScores[item.courseCode];
-              const scoreVal = sim?.score || '';
-              const isBut = sim?.isBut ?? false;
+              const sim = simulatedScores[item.courseCode] || { midterm: '', finalExam: '', isBut: false };
+              const mStr = sim.midterm;
+              const fStr = sim.finalExam;
+              const isBut = sim.isBut;
 
-              const finalScoreNum = scoreVal !== '' ? parseFloat(scoreVal) : 0;
-              const calcAvg = midtermNum > 0 && finalScoreNum > 0 ? midtermNum * 0.4 + finalScoreNum * 0.6 : 0;
-              const letterInfo = calcAvg > 0 ? getLetterAndCoeff(calcAvg) : null;
+              const hasM = mStr.trim() !== '';
+              const hasF = fStr.trim() !== '';
+
+              let calcAvg: number | null = null;
+              if (hasM && hasF) {
+                const m = parseFloat(mStr);
+                const f = parseFloat(fStr);
+                if (!isNaN(m) && !isNaN(f)) {
+                  calcAvg = m * 0.4 + f * 0.6;
+                }
+              } else if (hasF && !hasM) {
+                const f = parseFloat(fStr);
+                if (!isNaN(f)) {
+                  calcAvg = f;
+                }
+              }
+
+              const letterInfo = calcAvg !== null ? getLetterAndCoeff(calcAvg) : null;
               const badgeBg = letterInfo ? getBadgeColor(letterInfo.letter) : colors.textMuted;
 
-              const req50 = midtermNum > 0 ? Math.max(0, Math.ceil((50 - midtermNum * 0.4) / 0.6)) : 50;
-              const reqCC = midtermNum > 0 ? Math.max(0, Math.ceil((70 - midtermNum * 0.4) / 0.6)) : 70;
+              // Pass threshold based on Midterm:
+              // Final must be >= 50 and avg >= 50
+              const mNum = hasM ? parseFloat(mStr) : null;
+              const req50 = mNum !== null && !isNaN(mNum) ? Math.max(50, Math.ceil((50 - mNum * 0.4) / 0.6)) : 50;
+              const reqCC = mNum !== null && !isNaN(mNum) ? Math.max(50, Math.ceil((70 - mNum * 0.4) / 0.6)) : 70;
 
               return (
                 <View key={`${item.courseCode}-${idx}`} style={styles.courseCard}>
@@ -321,27 +422,37 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
                   </View>
 
                   <View style={styles.scoresRow}>
+                    {/* Midterm Input */}
                     <View style={styles.scoreCol}>
-                      <Text style={styles.scoreLabel}>VİZE</Text>
-                      <Text style={styles.scoreVal}>{item.midterm ?? '-'}</Text>
-                    </View>
-
-                    <View style={styles.scoreCol}>
-                      <Text style={styles.scoreLabel}>{isBut ? 'BÜT TAHMİN' : 'FİNAL TAHMİN'}</Text>
+                      <Text style={styles.scoreLabel}>VİZE (%40)</Text>
                       <TextInput
                         style={styles.scoreInput}
-                        placeholder={item.finalExam ? String(item.finalExam) : 'Not'}
+                        placeholder={item.midterm !== null && item.midterm !== undefined ? String(item.midterm) : 'Not'}
                         placeholderTextColor={colors.textMuted}
                         keyboardType="numeric"
-                        value={scoreVal}
-                        onChangeText={(txt) => handleSetCourseScore(item.courseCode, txt)}
+                        value={mStr}
+                        onChangeText={(txt) => handleSetMidterm(item.courseCode, txt)}
                       />
                     </View>
 
+                    {/* Final / Büt Input */}
+                    <View style={styles.scoreCol}>
+                      <Text style={styles.scoreLabel}>{isBut ? 'BÜT (%60)' : 'FİNAL (%60)'}</Text>
+                      <TextInput
+                        style={styles.scoreInput}
+                        placeholder={item.finalExam !== null && item.finalExam !== undefined ? String(item.finalExam) : 'Not'}
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        value={fStr}
+                        onChangeText={(txt) => handleSetFinal(item.courseCode, txt)}
+                      />
+                    </View>
+
+                    {/* Average Output */}
                     <View style={styles.scoreCol}>
                       <Text style={styles.scoreLabel}>ORTALAMA</Text>
-                      <Text style={[styles.scoreVal, { color: colors.primary }]}>
-                        {calcAvg > 0 ? calcAvg.toFixed(1) : '-'}
+                      <Text style={[styles.scoreVal, { color: calcAvg !== null ? colors.primary : colors.textMuted }]}>
+                        {calcAvg !== null ? calcAvg.toFixed(1) : '-'}
                       </Text>
                     </View>
                   </View>
@@ -359,11 +470,11 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
                     </TouchableOpacity>
 
                     <View style={styles.quickChipsGroup}>
-                      {[50, 65, 80].map((quick) => (
+                      {[50, 70, 85, 100].map((quick) => (
                         <TouchableOpacity
                           key={quick}
                           style={styles.quickChip}
-                          onPress={() => handleSetCourseScore(item.courseCode, String(quick))}
+                          onPress={() => handleSetFinal(item.courseCode, String(quick))}
                           activeOpacity={0.7}
                         >
                           <Text style={styles.quickChipText}>{quick}</Text>
@@ -372,14 +483,14 @@ export const AgnoSimulatorScreen: React.FC<AgnoSimulatorScreenProps> = ({ onClos
                     </View>
                   </View>
 
-                  {/* Threshold Hint & Warning */}
-                  {scoreVal !== '' && parseFloat(scoreVal) < 50 ? (
+                  {/* Warning and Guidance Hints */}
+                  {hasF && parseFloat(fStr) < 50 ? (
                     <View style={styles.warningBox}>
                       <Text style={styles.warningText}>
-                        ⚠️ Final notu 50'nin altında. Geçme barajı için en az 50 almalısınız.
+                        ⚠️ Final notu 50'nin altında. Üniversite barajı gereği en az 50 almalısınız.
                       </Text>
                     </View>
-                  ) : midtermNum > 0 ? (
+                  ) : hasM && !hasF ? (
                     <View style={styles.reqHintRow}>
                       <Text style={styles.reqHintText}>
                         🎯 Geçmek için: min <Text style={styles.reqHintBold}>{req50}</Text> • CC için min{' '}
@@ -534,6 +645,47 @@ const getSimulatorStyles = (colors: ThemeColors) =>
       fontSize: 11,
       fontWeight: '800',
     },
+    presetsContainer: {
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    presetsLabel: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: colors.textMuted,
+      letterSpacing: 0.8,
+      marginBottom: 8,
+    },
+    presetsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    presetChip: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: colors.primarySubtle,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      alignItems: 'center',
+    },
+    presetChipText: {
+      color: colors.primary,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    presetChipOutline: {
+      backgroundColor: colors.cardAlt,
+      borderColor: colors.cardBorder,
+    },
+    presetChipOutlineText: {
+      color: colors.text,
+      fontSize: 11,
+      fontWeight: '600',
+    },
     sectionHeaderRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -548,24 +700,6 @@ const getSimulatorStyles = (colors: ThemeColors) =>
     courseCountText: {
       fontSize: 12,
       color: colors.textMuted,
-    },
-    presetsRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    presetChip: {
-      flex: 1,
-      paddingVertical: 8,
-      borderRadius: 12,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      alignItems: 'center',
-    },
-    presetChipText: {
-      color: colors.primary,
-      fontSize: 12,
-      fontWeight: '700',
     },
     emptyCard: {
       backgroundColor: colors.card,
@@ -634,16 +768,15 @@ const getSimulatorStyles = (colors: ThemeColors) =>
       fontSize: 9,
       fontWeight: '800',
       letterSpacing: 0.5,
-      marginBottom: 3,
+      marginBottom: 4,
     },
     scoreVal: {
-      color: colors.text,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: 15,
+      fontWeight: '800',
     },
     scoreInput: {
-      height: 32,
-      minWidth: 54,
+      height: 34,
+      minWidth: 58,
       textAlign: 'center',
       backgroundColor: colors.card,
       borderRadius: 8,
