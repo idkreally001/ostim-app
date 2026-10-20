@@ -1,5 +1,7 @@
 import { Linking, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { logService } from './logService';
+import { systemNative } from '../utils/systemNative';
 
 export const CURRENT_APP_VERSION = '1.0.3';
 export const GITHUB_REPO = 'idkreally001/ostim-app';
@@ -102,6 +104,66 @@ class UpdateService {
       return null;
     } finally {
       this.isChecking = false;
+    }
+  }
+
+  /**
+   * In-App download with live progress percentage.
+   * Directly triggers Android PackageInstaller on completion without leaving app.
+   */
+  async downloadAndInstallWithProgress(
+    updateInfo: UpdateInfo,
+    onProgress: (progress: { percent: number; writtenMb: number; totalMb: number }) => void
+  ): Promise<boolean> {
+    const apkUrl = updateInfo.apkDownloadUrl;
+    if (!apkUrl || Platform.OS !== 'android') {
+      await this.downloadAndInstall(updateInfo);
+      return false;
+    }
+
+    try {
+      const fileName = `ostim-app-v${updateInfo.latestVersion}.apk`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+      logService.info('UpdateService', `Uygulama içi indirme başlatıldı: ${fileName}`);
+
+      // Check if already downloaded
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (fileInfo.exists && (fileInfo as any).size > 10 * 1024 * 1024) {
+        logService.info('UpdateService', 'APK önbellekte mevcut, doğrudan kuruluyor.');
+        const sizeMb = parseFloat(((fileInfo as any).size / (1024 * 1024)).toFixed(1));
+        onProgress({ percent: 100, writtenMb: sizeMb, totalMb: sizeMb });
+        return await systemNative.installApk(fileUri);
+      }
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        apkUrl,
+        fileUri,
+        {},
+        (downloadProgress) => {
+          const written = downloadProgress.totalBytesWritten;
+          const total = downloadProgress.totalBytesExpectedToWrite;
+          const percent = total > 0 ? Math.min(100, Math.round((written / total) * 100)) : 0;
+          onProgress({
+            percent,
+            writtenMb: parseFloat((written / (1024 * 1024)).toFixed(1)),
+            totalMb: parseFloat((total / (1024 * 1024)).toFixed(1)),
+          });
+        }
+      );
+
+      const result = await downloadResumable.downloadAsync();
+      if (result && result.uri) {
+        logService.info('UpdateService', `APK başarıyla indi, paket yükleyici açılıyor: ${result.uri}`);
+        onProgress({ percent: 100, writtenMb: 70.5, totalMb: 70.5 });
+        return await systemNative.installApk(result.uri);
+      } else {
+        throw new Error('İndirme dosyası oluşturulamadı.');
+      }
+    } catch (err: any) {
+      logService.error('UpdateService', 'Uygulama içi indirme hatası, tarayıcıya geçiliyor', err.message);
+      await this.downloadAndInstall(updateInfo);
+      return false;
     }
   }
 

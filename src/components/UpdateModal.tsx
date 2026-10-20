@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { UpdateInfo, updateService } from '../services/updateService';
 
@@ -21,11 +22,26 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   updateInfo,
   onDismiss,
 }) => {
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState({ percent: 0, writtenMb: 0, totalMb: 0 });
+
   if (!updateInfo || !visible) return null;
 
-  const handleUpdatePress = () => {
-    updateService.downloadAndInstall(updateInfo);
-    onDismiss();
+  const handleUpdatePress = async () => {
+    if (Platform.OS === 'android') {
+      setDownloading(true);
+      setProgress({ percent: 0, writtenMb: 0, totalMb: 0 });
+      try {
+        await updateService.downloadAndInstallWithProgress(updateInfo, (p) => {
+          setProgress(p);
+        });
+      } finally {
+        setDownloading(false);
+      }
+    } else {
+      updateService.downloadAndInstall(updateInfo);
+      onDismiss();
+    }
   };
 
   return (
@@ -33,7 +49,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onDismiss}
+      onRequestClose={downloading ? () => {} : onDismiss}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalCard}>
@@ -55,25 +71,46 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </ScrollView>
           </View>
 
-          {/* Action Buttons */}
+          {/* Action Buttons & Progress */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.updateButton}
-              onPress={handleUpdatePress}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.updateButtonText}>
-                {Platform.OS === 'android' ? '📥 İndir ve Güncelle' : '🌐 GitHub\'da Aç'}
-              </Text>
-            </TouchableOpacity>
+            {downloading ? (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressTextRow}>
+                  <Text style={styles.progressPercent}>{progress.percent}%</Text>
+                  <Text style={styles.progressMb}>
+                    {progress.writtenMb} MB / {progress.totalMb || 70.5} MB
+                  </Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: `${Math.max(5, progress.percent)}%` }]} />
+                </View>
+                <Text style={styles.progressHint}>
+                  {progress.percent >= 100
+                    ? 'İndirme tamamlandı! Paket yükleyici açılıyor...'
+                    : 'İndiriliyor, lütfen uygulamadan çıkmayın...'}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.updateButton}
+                  onPress={handleUpdatePress}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.updateButtonText}>
+                    {Platform.OS === 'android' ? '📥 Hemen İndir ve Güncelle' : '🌐 GitHub\'da Aç'}
+                  </Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dismissButton}
-              onPress={onDismiss}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.dismissButtonText}>Daha Sonra Hatırlat</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dismissButton}
+                  onPress={onDismiss}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dismissButtonText}>Daha Sonra Hatırlat</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </View>
@@ -188,5 +225,46 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 13,
     fontWeight: '600',
+  },
+  progressContainer: {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  progressTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressPercent: {
+    color: '#38bdf8',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  progressMb: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  progressBarTrack: {
+    height: 10,
+    backgroundColor: '#1e293b',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 5,
+  },
+  progressHint: {
+    color: '#64748b',
+    fontSize: 11,
+    textAlign: 'center',
   },
 });

@@ -7,7 +7,10 @@ import com.facebook.react.uimanager.ViewManager
 
 class CookiePackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(CookieModule(reactContext))
+        return listOf(
+            CookieModule(reactContext),
+            SystemNativeModule(reactContext)
+        )
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

@@ -27,11 +27,13 @@ import { LogsScreen } from './src/screens/LogsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { updateService, UpdateInfo } from './src/services/updateService';
 import { UpdateModal } from './src/components/UpdateModal';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 type Portal = 'obs' | 'lms';
 type ObsTab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
 
-export default function App() {
+function AppContent() {
+  const { colors } = useTheme();
   const [initializing, setInitializing] = useState(true);
   const [activePortal, setActivePortal] = useState<Portal>('obs');
 
@@ -171,9 +173,9 @@ export default function App() {
 
   if (initializing) {
     return (
-      <View style={styles.splashContainer}>
+      <View style={[styles.splashContainer, { backgroundColor: colors.bg }]}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <StatusBar style="light" />
+        <StatusBar style={colors.statusBarStyle} />
       </View>
     );
   }
@@ -181,8 +183,8 @@ export default function App() {
   // Neither portal is authenticated -> Show full login screen
   if (!isObsAuthenticated && !isLmsAuthenticated) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="light" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+        <StatusBar style={colors.statusBarStyle} />
         <LoginScreen
           initialPortal={activePortal}
           isObsAuthenticated={isObsAuthenticated}
@@ -205,8 +207,8 @@ export default function App() {
           animationType="slide"
           onRequestClose={() => setShowSettings(false)}
         >
-          <SafeAreaView style={styles.safeArea}>
-            <StatusBar style="light" />
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+            <StatusBar style={colors.statusBarStyle} />
             <SettingsScreen
               onClose={() => setShowSettings(false)}
               isObsAuthenticated={false}
@@ -247,11 +249,11 @@ export default function App() {
   const isCurrentPortalAuthed = activePortal === 'obs' ? isObsAuthenticated : isLmsAuthenticated;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+      <StatusBar style={colors.statusBarStyle} />
 
       {/* Modern Top Header with Portal Switcher */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.cardBorder }]}>
         {/* Left University Mini Logo */}
         <View style={styles.logoBadgeMini}>
           <Text style={styles.logoBadgeMiniText}>OSTİM</Text>
@@ -539,6 +541,14 @@ export default function App() {
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
