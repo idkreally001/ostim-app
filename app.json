@@ -2,7 +2,7 @@
   "expo": {
     "name": "ostim-app",
     "slug": "ostim-app",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.ostim.app",
-      "versionCode": 4,
+      "versionCode": 6,
       "permissions": ["INTERNET"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

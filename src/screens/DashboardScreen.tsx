@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { StudentProfile, TimetableEntry } from '../types/models';
 import { weatherService, WeatherInfo, LessonWeatherSummary } from '../services/weatherService';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 interface DashboardScreenProps {
   onLogout: () => void;
@@ -19,12 +20,13 @@ interface DashboardScreenProps {
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNavigateTab }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getDashboardStyles(colors), [colors]);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [nextClass, setNextClass] = useState<TimetableEntry | null>(null);
   const [nextClassDateText, setNextClassDateText] = useState<string>('');
   const [currentWeather, setCurrentWeather] = useState<WeatherInfo | null>(null);
   const [lessonWeather, setLessonWeather] = useState<LessonWeatherSummary | null>(null);
-  const [isCached, setIsCached] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +39,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       ]);
       if (cached && (cached.firstName || cached.studentNo)) {
         setProfile(cached);
-        setIsCached(true);
         setLoading(false);
       }
       if (cachedTimetable && cachedTimetable.length > 0) {
@@ -48,7 +49,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       const fresh = await obsClient.getProfile();
       if (fresh) {
         setProfile(fresh);
-        setIsCached(false);
         await AuthStorage.saveCachedProfile(fresh);
       }
 
@@ -62,7 +62,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       weatherService.getCurrentWeather().then(setCurrentWeather);
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
-      setIsCached(true);
       if (err.message === 'SESSION_EXPIRED') {
         onLogout();
       }
@@ -117,10 +116,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
     loadData();
   };
 
+  const displayName = profile?.firstName || profile?.lastName
+    ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+    : (profile?.studentNo ? `Öğrenci #${profile.studentNo}` : 'Öğrenci');
+
+  const greetingName = profile?.firstName
+    ? profile.firstName.split(' ')[0]
+    : 'Öğrenci';
+
+  const avatarInitials = profile?.firstName && profile?.lastName
+    ? `${profile.firstName[0].toUpperCase()}${profile.lastName[0].toUpperCase()}`
+    : (profile?.firstName ? profile.firstName.slice(0, 2).toUpperCase() : 'ÖG');
+
   if (loading && !profile) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#60a5fa" />
         <Text style={styles.loadingText}>Yükleniyor...</Text>
       </View>
     );
@@ -129,51 +140,56 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#60a5fa" />}
     >
-      {/* Campus Weather Bar */}
-      {currentWeather ? (
-        <View style={styles.weatherBar}>
-          <Text style={styles.weatherEmoji}>{currentWeather.emoji}</Text>
-          <Text style={styles.weatherText}>
-            OSTİM Kampüs: <Text style={styles.weatherTemp}>{currentWeather.temp}°C</Text> • {currentWeather.condition}
-          </Text>
+      {/* Material You Header: Greeting & Campus Context */}
+      <View style={styles.greetingHeader}>
+        <View style={styles.greetingTextContainer}>
+          <Text style={styles.greetingTitle}>Merhaba, {greetingName} 👋</Text>
+          {currentWeather ? (
+            <View style={styles.weatherChip}>
+              <Text style={styles.weatherChipEmoji}>{currentWeather.emoji}</Text>
+              <Text style={styles.weatherChipText}>
+                OSTİM Kampüs <Text style={styles.weatherChipTemp}>{currentWeather.temp}°C</Text> • {currentWeather.condition}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.greetingSubtitle}>OSTİM Teknik Üniversitesi</Text>
+          )}
         </View>
-      ) : null}
+      </View>
 
-      {/* Header Profile Card */}
+      {/* Material You Hero Profile Card */}
       <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile?.firstName ? profile.firstName[0].toUpperCase() : 'Ö'}
-            {profile?.lastName ? profile.lastName[0].toUpperCase() : 'G'}
-          </Text>
-        </View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.name}>
-            {profile?.firstName || profile?.lastName
-              ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
-              : (profile?.studentNo ? `Öğrenci #${profile.studentNo}` : 'Öğrenci')}
-          </Text>
-          <View style={styles.profileSubRow}>
-            <Text style={styles.studentNo}>{profile?.studentNo || 'No Belirtilmedi'}</Text>
-            {isCached ? (
-              <View style={styles.offlinePill}>
-                <Text style={styles.offlinePillText}>⚡ Çevrimdışı</Text>
-              </View>
-            ) : (
-              <View style={styles.livePill}>
-                <Text style={styles.livePillText}>✓ Canlı</Text>
-              </View>
-            )}
+        <View style={styles.profileMainRow}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{avatarInitials}</Text>
           </View>
-          <Text style={styles.dept}>{profile?.department || 'OSTİM Teknik Üniversitesi'}</Text>
-        </View>
-        <View style={styles.gpaBadge}>
-          <Text style={styles.gpaLabel}>AGNO</Text>
-          <Text style={styles.gpaValue}>
-            {typeof profile?.gpa === 'number' && !isNaN(profile.gpa) ? profile.gpa.toFixed(2) : '0.00'}
-          </Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.name} numberOfLines={1}>
+              {displayName}
+            </Text>
+            <Text style={styles.studentNo}>
+              {profile?.studentNo ? `Öğrenci No: ${profile.studentNo}` : 'Numara Belirtilmedi'}
+            </Text>
+            <View style={styles.deptChip}>
+              <Text style={styles.deptChipText} numberOfLines={1}>
+                {profile?.department || 'Mühendislik Fakültesi'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Elevated AGNO Container */}
+          <View style={styles.gpaContainer}>
+            <Text style={styles.gpaLabel}>AGNO</Text>
+            <Text style={styles.gpaValue}>
+              {typeof profile?.gpa === 'number' && !isNaN(profile.gpa) ? profile.gpa.toFixed(2) : '0.00'}
+            </Text>
+            {typeof profile?.termGpa === 'number' && profile.termGpa > 0 ? (
+              <Text style={styles.termGpaText}>ANO: {profile.termGpa.toFixed(2)}</Text>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -181,32 +197,45 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Sıradaki Ders</Text>
         {nextClassDateText ? (
-          <Text style={styles.sectionDate}>{nextClassDateText}</Text>
+          <View style={styles.dateChip}>
+            <Text style={styles.dateChipText}>{nextClassDateText}</Text>
+          </View>
         ) : null}
       </View>
 
       {nextClass ? (
         <View style={styles.nextClassCard}>
-          <View style={styles.cardTopRow}>
-            <View style={styles.timeBadge}>
-              <Text style={styles.timeText}>{nextClass.startTime}</Text>
-              <Text style={styles.endTimeText}>- {nextClass.endTime}</Text>
-            </View>
-            <View style={styles.nextClassInfo}>
-              <Text style={styles.courseName}>{nextClass.courseName}</Text>
-              <Text style={styles.courseCode}>{nextClass.courseCode}</Text>
-              <View style={styles.roomRow}>
-                <Text style={styles.roomBadge}>📍 {nextClass.classroom}</Text>
-                {nextClass.instructor ? (
-                  <Text style={styles.instructorText}>{nextClass.instructor}</Text>
+          <View style={styles.classCardContent}>
+            <View style={styles.classTopRow}>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeText}>{nextClass.startTime}</Text>
+                <Text style={styles.endTimeText}>- {nextClass.endTime}</Text>
+              </View>
+              <View style={styles.courseMeta}>
+                <Text style={styles.courseName}>{nextClass.courseName}</Text>
+                {nextClass.courseCode ? (
+                  <Text style={styles.courseCode}>{nextClass.courseCode}</Text>
                 ) : null}
               </View>
+            </View>
+
+            <View style={styles.chipsRow}>
+              <View style={styles.classroomChip}>
+                <Text style={styles.classroomChipText}>📍 {nextClass.classroom}</Text>
+              </View>
+              {nextClass.instructor ? (
+                <View style={styles.instructorChip}>
+                  <Text style={styles.instructorChipText} numberOfLines={1}>
+                    👤 {nextClass.instructor}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
           {/* Pre-lesson Weather Forecast Widget */}
           {lessonWeather ? (
-            <View style={styles.lessonWeatherRow}>
+            <View style={styles.lessonWeatherBar}>
               <Text style={styles.lessonWeatherEmoji}>{lessonWeather.emoji}</Text>
               <Text style={styles.lessonWeatherText}>
                 Ders Öncesi ({lessonWeather.periodText}):{' '}
@@ -217,7 +246,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
         </View>
       ) : (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Planlanmış ders bulunmuyor.</Text>
+          <Text style={styles.emptyIcon}>☕</Text>
+          <Text style={styles.emptyText}>Bugün için planlanmış başka ders bulunmuyor.</Text>
         </View>
       )}
 
@@ -226,254 +256,324 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
         <Text style={styles.sectionTitle}>Hızlı Erişim</Text>
       </View>
       <View style={styles.grid}>
-        <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('timetable')}>
-          <Text style={styles.gridIcon}>📅</Text>
+        <TouchableOpacity
+          style={styles.gridCard}
+          activeOpacity={0.75}
+          onPress={() => onNavigateTab('timetable')}
+        >
+          <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
+            <Text style={styles.gridIcon}>📅</Text>
+          </View>
           <Text style={styles.gridTitle}>Haftalık Program</Text>
-          <Text style={styles.gridDesc}>Derslikler ve haftalık saatler</Text>
+          <Text style={styles.gridDesc}>Ders saatleri ve derslikler</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('grades')}>
-          <Text style={styles.gridIcon}>📊</Text>
-          <Text style={styles.gridTitle}>Notlar & Simülatör</Text>
-          <Text style={styles.gridDesc}>Vize, final ve GPA simülasyonu</Text>
+        <TouchableOpacity
+          style={styles.gridCard}
+          activeOpacity={0.75}
+          onPress={() => onNavigateTab('grades')}
+        >
+          <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
+            <Text style={styles.gridIcon}>📊</Text>
+          </View>
+          <Text style={styles.gridTitle}>Dönem Notları</Text>
+          <Text style={styles.gridDesc}>Vize, final ve başarı durumu</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('attendance')}>
-          <Text style={styles.gridIcon}>⏱️</Text>
+        <TouchableOpacity
+          style={styles.gridCard}
+          activeOpacity={0.75}
+          onPress={() => onNavigateTab('attendance')}
+        >
+          <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(234, 179, 8, 0.12)' }]}>
+            <Text style={styles.gridIcon}>⏱️</Text>
+          </View>
           <Text style={styles.gridTitle}>Devamsızlık</Text>
           <Text style={styles.gridDesc}>Kalan devamsızlık hakları</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.gridCard} onPress={() => onNavigateTab('lms')}>
-          <Text style={styles.gridIcon}>📚</Text>
+        <TouchableOpacity
+          style={styles.gridCard}
+          activeOpacity={0.75}
+          onPress={() => onNavigateTab('lms')}
+        >
+          <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.12)' }]}>
+            <Text style={styles.gridIcon}>📚</Text>
+          </View>
           <Text style={styles.gridTitle}>Moodle LMS</Text>
-          <Text style={styles.gridDesc}>Ödevler, teslimler ve dersler</Text>
+          <Text style={styles.gridDesc}>Ödevler, teslimler ve dokümanlar</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const getDashboardStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090d16',
+    backgroundColor: colors.bg,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#090d16',
+    backgroundColor: colors.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginTop: 12,
     fontSize: 14,
   },
-  weatherBar: {
+  greetingHeader: {
+    marginBottom: 16,
+  },
+  greetingTextContainer: {
+    gap: 4,
+  },
+  greetingTitle: {
+    fontSize: 23,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  greetingSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  weatherChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111827',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 14,
-    marginBottom: 14,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.card,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
+    marginTop: 4,
   },
-  weatherEmoji: {
-    fontSize: 18,
-    marginRight: 8,
+  weatherChipEmoji: {
+    fontSize: 14,
+    marginRight: 6,
   },
-  weatherText: {
-    color: '#94a3b8',
+  weatherChipText: {
+    color: colors.textSecondary,
     fontSize: 12,
   },
-  weatherTemp: {
-    color: '#f8fafc',
+  weatherChipTemp: {
+    color: colors.text,
     fontWeight: '700',
   },
   profileCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: 24,
     padding: 18,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: colors.isDark ? 0.15 : 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  profileMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1e293b',
-    marginBottom: 18,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#2563eb',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.primarySubtle,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   avatarText: {
-    color: '#ffffff',
+    color: colors.primary,
     fontSize: 19,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   profileInfo: {
     flex: 1,
+    marginRight: 12,
   },
   name: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#f8fafc',
-    marginBottom: 2,
+    color: colors.text,
+    marginBottom: 3,
   },
   studentNo: {
-    fontSize: 13,
-    color: '#94a3b8',
-  },
-  profileSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 3,
-    marginTop: 1,
-  },
-  offlinePill: {
-    backgroundColor: '#422006',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#78350f',
-  },
-  offlinePillText: {
-    color: '#fbbf24',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  livePill: {
-    backgroundColor: '#064e3b',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#065f46',
-  },
-  livePillText: {
-    color: '#6ee7b7',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  dept: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
+    marginBottom: 5,
   },
-  gpaBadge: {
-    backgroundColor: '#1e293b',
+  deptChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  deptChipText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  gpaContainer: {
+    backgroundColor: colors.primarySubtle,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 74,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.cardBorder,
   },
   gpaLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#38bdf8',
-    letterSpacing: 1,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 1.2,
   },
   gpaValue: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#f8fafc',
-    marginTop: 2,
+    color: colors.primary,
+    marginVertical: 1,
+  },
+  termGpaText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+    paddingHorizontal: 2,
   },
   sectionHeader: {
     marginBottom: 10,
+    paddingHorizontal: 2,
+    marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#cbd5e1',
+    color: colors.text,
+    letterSpacing: -0.2,
   },
-  sectionDate: {
+  dateChip: {
+    backgroundColor: colors.primarySubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+  dateChipText: {
     fontSize: 12,
-    color: '#38bdf8',
+    color: colors.primary,
     fontWeight: '600',
   },
   nextClassCard: {
-    backgroundColor: '#111827',
-    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderRadius: 24,
     padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: colors.isDark ? 0.12 : 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  cardTopRow: {
+  classCardContent: {
+    gap: 12,
+  },
+  classTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  timeBadge: {
-    backgroundColor: '#0b1120',
+  timeChip: {
+    backgroundColor: colors.primarySubtle,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
     marginRight: 14,
+    minWidth: 80,
   },
   timeText: {
-    color: '#38bdf8',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '800',
   },
   endTimeText: {
-    color: '#64748b',
+    color: colors.textSecondary,
     fontSize: 11,
+    fontWeight: '500',
   },
-  nextClassInfo: {
+  courseMeta: {
     flex: 1,
   },
   courseName: {
-    color: '#f8fafc',
-    fontSize: 15,
-    fontWeight: '600',
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 2,
   },
   courseCode: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
-    marginBottom: 6,
+    fontWeight: '500',
   },
-  roomRow: {
+  chipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+    gap: 8,
   },
-  roomBadge: {
-    color: '#34d399',
+  classroomChip: {
+    backgroundColor: colors.isDark ? 'rgba(52, 211, 153, 0.12)' : 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: colors.isDark ? 'rgba(52, 211, 153, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+  },
+  classroomChipText: {
+    color: colors.isDark ? '#34d399' : '#059669',
     fontSize: 12,
     fontWeight: '600',
-    marginRight: 10,
   },
-  instructorText: {
-    color: '#64748b',
-    fontSize: 11,
+  instructorChip: {
+    backgroundColor: colors.cardAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
   },
-  lessonWeatherRow: {
+  instructorChipText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  lessonWeatherBar: {
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
+    borderTopColor: colors.cardBorder,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -482,51 +582,65 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   lessonWeatherText: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   lessonWeatherBold: {
-    color: '#cbd5e1',
+    color: colors.text,
     fontWeight: '600',
   },
   emptyCard: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 18,
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    gap: 8,
+  },
+  emptyIcon: {
+    fontSize: 28,
   },
   emptyText: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 13,
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingBottom: 24,
+    gap: 12,
   },
   gridCard: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: 22,
     padding: 16,
     width: '48%',
-    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
+  },
+  gridIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
   gridIcon: {
-    fontSize: 22,
-    marginBottom: 8,
+    fontSize: 20,
   },
   gridTitle: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 3,
   },
   gridDesc: {
-    color: '#64748b',
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 15,
   },

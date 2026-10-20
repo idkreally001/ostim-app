@@ -27,6 +27,16 @@ class LogService {
       this.logs.pop();
     }
 
+    // Also forward to React Native console so it appears in adb logcat
+    const formattedTag = `[${tag}] ${message}`;
+    if (level === 'error') {
+      console.error(formattedTag, details ?? '');
+    } else if (level === 'warn') {
+      console.warn(formattedTag, details ?? '');
+    } else {
+      console.log(formattedTag, details ?? '');
+    }
+
     this.notify();
   }
 

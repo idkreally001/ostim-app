@@ -28,12 +28,14 @@ import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { LmsWebViewLogin } from '../components/LmsWebViewLogin';
 import { LmsDocViewerModal, LmsViewerDoc } from '../components/LmsDocViewerModal';
+import { useTheme } from '../theme/ThemeContext';
 
 interface LmsScreenProps {
   onSessionChange?: (connected: boolean) => void;
 }
 
 export const LmsScreen: React.FC<LmsScreenProps> = ({ onSessionChange }) => {
+  const { colors } = useTheme();
   const [isConnected, setIsConnected] = useState(false);
 
   const updateConnectedState = (connected: boolean) => {
@@ -949,7 +951,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
   const overdueCount = events.filter((e) => e.isOverdue).length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Top Banner / Session Info */}
       <View style={styles.statusBarCard}>
         <View style={styles.statusLeft}>

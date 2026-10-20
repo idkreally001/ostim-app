@@ -14,6 +14,7 @@ import { AuthStorage } from '../storage/authStorage';
 import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { TimetableEntry } from '../types/models';
+import { useTheme } from '../theme/ThemeContext';
 
 const DAYS = [
   { id: 0, label: 'Pzt' },
@@ -24,6 +25,7 @@ const DAYS = [
 ];
 
 export const TimetableScreen: React.FC = () => {
+  const { colors } = useTheme();
   const [schedule, setSchedule] = useState<TimetableEntry[]>([]);
   const [isOffline, setIsOffline] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(() => {
@@ -147,9 +149,9 @@ export const TimetableScreen: React.FC = () => {
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Top Bar with Day Tabs and Export Buttons */}
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: colors.headerBg, borderBottomColor: colors.cardBorder }]}>
         <View style={styles.daysRow}>
           {DAYS.map((day) => {
             const isActive = day.id === selectedDay;

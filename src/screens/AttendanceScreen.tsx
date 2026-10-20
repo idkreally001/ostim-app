@@ -10,8 +10,10 @@ import {
 import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { AttendanceEntry } from '../types/models';
+import { useTheme } from '../theme/ThemeContext';
 
 export const AttendanceScreen: React.FC = () => {
+  const { colors } = useTheme();
   const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,7 +46,7 @@ export const AttendanceScreen: React.FC = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />

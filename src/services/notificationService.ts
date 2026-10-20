@@ -11,7 +11,7 @@ export interface NotificationSettings {
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
-  enabled: true,
+  enabled: false,
   leadMinutes: 15,
   selectedDays: [0, 1, 2, 3, 4],
   soundEnabled: true,

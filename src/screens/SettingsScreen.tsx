@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -15,7 +15,7 @@ import { AuthStorage } from '../storage/authStorage';
 import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { UpdateModal } from '../components/UpdateModal';
-import { useTheme } from '../theme/ThemeContext';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { notificationService, NotificationSettings } from '../services/notificationService';
 
 interface SettingsScreenProps {
@@ -42,10 +42,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   // Theme state
   const { themeMode, setThemeMode, colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   // Notification settings state
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
-    enabled: true,
+    enabled: false,
     leadMinutes: 15,
     selectedDays: [0, 1, 2, 3, 4],
     soundEnabled: true,
@@ -217,7 +218,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.versionBadgeText}>Sürüm v{CURRENT_APP_VERSION}</Text>
             </View>
             <View style={styles.buildBadge}>
-              <Text style={styles.buildBadgeText}>Build 4 (Android)</Text>
+              <Text style={styles.buildBadgeText}>Build 6 (Android)</Text>
             </View>
           </View>
         </View>
@@ -653,10 +654,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090d16',
+    backgroundColor: colors.bg,
   },
   topHeader: {
     height: 56,
@@ -665,22 +666,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
-    backgroundColor: '#0f172a',
+    borderBottomColor: colors.cardBorder,
+    backgroundColor: colors.headerBg,
   },
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.cardAlt,
   },
   backBtnText: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   headerTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -694,16 +695,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   heroCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
   },
   logoBadge: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -716,13 +717,13 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   appName: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 6,
   },
   appDesc: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
@@ -734,33 +735,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   versionBadge: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.cardAlt,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.cardBorder,
   },
   versionBadgeText: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '700',
   },
   buildBadge: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.cardAlt,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.cardBorder,
   },
   buildBadgeText: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   sectionHeader: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
@@ -768,11 +769,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
     marginBottom: 20,
   },
   themeSelectorRow: {
@@ -788,24 +789,24 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
   },
   themeOptionBtnActive: {
-    backgroundColor: '#1e293b',
-    borderColor: '#3b82f6',
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primary,
   },
   themeOptionIcon: {
     fontSize: 14,
   },
   themeOptionText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   themeOptionTextActive: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontWeight: '800',
   },
   notifToggleRow: {
@@ -822,7 +823,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#065f46',
   },
   toggleBtnOff: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
   toggleBtnText: {
     color: '#ffffff',
@@ -831,7 +834,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   subSectionTitle: {
-    color: '#cbd5e1',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 8,
@@ -847,21 +850,21 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
   },
   leadChipActive: {
-    backgroundColor: '#1e293b',
-    borderColor: '#3b82f6',
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primary,
   },
   leadChipText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   leadChipTextActive: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontWeight: '700',
   },
   daysRow: {
@@ -874,16 +877,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.cardBorder,
   },
   dayChipActive: {
-    backgroundColor: '#1d4ed8',
-    borderColor: '#3b82f6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayChipText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -901,12 +904,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardRowTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   cardRowSub: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
@@ -914,7 +917,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#064e3b',
+    backgroundColor: colors.isDark ? '#064e3b' : '#dcfce7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -926,12 +929,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
   },
   statusDotText: {
-    color: '#6ee7b7',
+    color: colors.isDark ? '#6ee7b7' : '#15803d',
     fontSize: 11,
     fontWeight: '700',
   },
   actionBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     paddingVertical: 11,
     borderRadius: 10,
     alignItems: 'center',
@@ -960,23 +963,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   navRowTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
   navRowSub: {
-    color: '#64748b',
+    color: colors.textSecondary,
     fontSize: 11,
     marginTop: 2,
   },
   navRowArrow: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.cardBorder,
     marginVertical: 4,
   },
   logBadgeContainer: {
@@ -1015,13 +1018,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   securityTitle: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 4,
   },
   securityText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 17,
   },
@@ -1030,7 +1033,7 @@ const styles = StyleSheet.create({
   },
   modalLogsContainer: {
     flex: 1,
-    backgroundColor: '#090d16',
+    backgroundColor: colors.bg,
     paddingTop: 40,
   },
   modalLogsHeader: {
@@ -1040,20 +1043,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: colors.cardBorder,
   },
   modalLogsClose: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
   modalLogsTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
   modalLogsExport: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1063,21 +1066,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.cardAlt,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: colors.cardBorder,
   },
   filterChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.card,
   },
   filterChipActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   filterChipText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1090,10 +1093,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: '#334155',
+    backgroundColor: colors.isDark ? '#334155' : '#e2e8f0',
   },
   clearLogsText: {
-    color: '#f87171',
+    color: '#ef4444',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1109,22 +1112,22 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyLogsText: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 13,
   },
   logEntry: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.card,
     borderRadius: 8,
     padding: 10,
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: colors.primary,
   },
   logEntryError: {
-    backgroundColor: '#200e12',
+    backgroundColor: colors.isDark ? '#200e12' : '#fee2e2',
     borderLeftColor: '#ef4444',
   },
   logEntryWarn: {
-    backgroundColor: '#261b0c',
+    backgroundColor: colors.isDark ? '#261b0c' : '#fef3c7',
     borderLeftColor: '#f59e0b',
   },
   logMetaRow: {
@@ -1134,31 +1137,31 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   logLevel: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 10,
     fontWeight: '800',
   },
   logContext: {
-    color: '#38bdf8',
+    color: colors.primary,
     fontSize: 10,
     fontWeight: '700',
   },
   logTime: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 9,
     marginLeft: 'auto',
   },
   logMessage: {
-    color: '#e2e8f0',
+    color: colors.text,
     fontSize: 12,
     lineHeight: 16,
   },
   logData: {
     marginTop: 4,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 10,
     fontFamily: 'monospace',
-    backgroundColor: '#090d16',
+    backgroundColor: colors.cardAlt,
     padding: 6,
     borderRadius: 4,
   },

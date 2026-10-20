@@ -369,43 +369,43 @@ function AppContent() {
 
       {/* Bottom Navigation Bar (Visible when in OBS portal and authenticated) */}
       {activePortal === 'obs' && isObsAuthenticated ? (
-        <View style={styles.bottomNav}>
+        <View style={[styles.bottomNav, { backgroundColor: colors.navBg, borderTopColor: colors.cardBorder }]}>
           <TouchableOpacity
-            style={[styles.navItem, obsTab === 'dashboard' && styles.activeNavItem]}
+            style={[styles.navItem, obsTab === 'dashboard' && [styles.activeNavItem, { backgroundColor: colors.cardAlt }]]}
             onPress={handleDashboardTap}
           >
             <Text style={styles.navIcon}>🏠</Text>
-            <Text style={[styles.navLabel, obsTab === 'dashboard' && styles.activeNavLabel]}>
+            <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'dashboard' && [styles.activeNavLabel, { color: colors.primary }]]}>
               Özet
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navItem, obsTab === 'timetable' && styles.activeNavItem]}
+            style={[styles.navItem, obsTab === 'timetable' && [styles.activeNavItem, { backgroundColor: colors.cardAlt }]]}
             onPress={() => setObsTab('timetable')}
           >
             <Text style={styles.navIcon}>📅</Text>
-            <Text style={[styles.navLabel, obsTab === 'timetable' && styles.activeNavLabel]}>
+            <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'timetable' && [styles.activeNavLabel, { color: colors.primary }]]}>
               Program
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navItem, obsTab === 'grades' && styles.activeNavItem]}
+            style={[styles.navItem, obsTab === 'grades' && [styles.activeNavItem, { backgroundColor: colors.cardAlt }]]}
             onPress={() => setObsTab('grades')}
           >
             <Text style={styles.navIcon}>📊</Text>
-            <Text style={[styles.navLabel, obsTab === 'grades' && styles.activeNavLabel]}>
+            <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'grades' && [styles.activeNavLabel, { color: colors.primary }]]}>
               Notlar
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navItem, obsTab === 'attendance' && styles.activeNavItem]}
+            style={[styles.navItem, obsTab === 'attendance' && [styles.activeNavItem, { backgroundColor: colors.cardAlt }]]}
             onPress={() => setObsTab('attendance')}
           >
             <Text style={styles.navIcon}>⏱️</Text>
-            <Text style={[styles.navLabel, obsTab === 'attendance' && styles.activeNavLabel]}>
+            <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'attendance' && [styles.activeNavLabel, { color: colors.primary }]]}>
               Devam
             </Text>
           </TouchableOpacity>
@@ -413,7 +413,7 @@ function AppContent() {
           {/* Easter Egg Dev Logs Tab */}
           {devUnlocked ? (
             <TouchableOpacity
-              style={[styles.navItem, obsTab === 'logs' && styles.activeNavItem]}
+              style={[styles.navItem, obsTab === 'logs' && [styles.activeNavItem, { backgroundColor: colors.cardAlt }]]}
               onPress={() => setObsTab('logs')}
             >
               <View style={styles.iconWithBadge}>
@@ -424,7 +424,7 @@ function AppContent() {
                   </View>
                 ) : null}
               </View>
-              <Text style={[styles.navLabel, obsTab === 'logs' && styles.activeNavLabel]}>
+              <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'logs' && [styles.activeNavLabel, { color: colors.primary }]]}>
                 Günlük
               </Text>
             </TouchableOpacity>
@@ -519,8 +519,8 @@ function AppContent() {
         animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <StatusBar style="light" />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+          <StatusBar style={colors.statusBarStyle} />
           <SettingsScreen
             onClose={() => setShowSettings(false)}
             isObsAuthenticated={isObsAuthenticated}
