@@ -25,6 +25,7 @@ import { AttendanceScreen } from './src/screens/AttendanceScreen';
 import { LmsScreen } from './src/screens/LmsScreen';
 import { LogsScreen } from './src/screens/LogsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { AgnoSimulatorScreen } from './src/screens/AgnoSimulatorScreen';
 import { updateService, UpdateInfo } from './src/services/updateService';
 import { UpdateModal } from './src/components/UpdateModal';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -41,6 +42,7 @@ function AppContent() {
   const [isLmsAuthenticated, setIsLmsAuthenticated] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSimulatorModal, setShowSimulatorModal] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
@@ -233,6 +235,7 @@ function AppContent() {
                 setObsTab(tab as ObsTab);
               }
             }}
+            onOpenSimulator={() => setShowSimulatorModal(true)}
           />
         );
       case 'timetable':
@@ -538,6 +541,18 @@ function AppContent() {
               handleFullLogout();
             }}
           />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Dedicated AGNO Simulator Modal */}
+      <Modal
+        visible={showSimulatorModal}
+        animationType="slide"
+        onRequestClose={() => setShowSimulatorModal(false)}
+      >
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+          <StatusBar style={colors.statusBarStyle} />
+          <AgnoSimulatorScreen onClose={() => setShowSimulatorModal(false)} />
         </SafeAreaView>
       </Modal>
     </SafeAreaView>

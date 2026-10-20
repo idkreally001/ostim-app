@@ -21,6 +21,7 @@ const KEY_PREFIX_GRADES = '@ostim_cached_grades_';
 
 const KEY_LMS_SESSION = 'ostim_lms_session_data';
 const KEY_CACHED_LMS_DATA = '@ostim_cached_lms_data';
+const KEY_TOOL_AGNO_SIMULATOR = '@ostim_tool_agno_simulator';
 
 export class AuthStorage {
   public static async saveSession(jwtToken: string, studentNo: string): Promise<void> {
@@ -210,6 +211,15 @@ export class AuthStorage {
     } catch {
       return null;
     }
+  }
+
+  public static async isAgnoSimulatorEnabled(): Promise<boolean> {
+    const val = await AsyncStorage.getItem(KEY_TOOL_AGNO_SIMULATOR);
+    return val === null ? true : val === 'true';
+  }
+
+  public static async setAgnoSimulatorEnabled(enabled: boolean): Promise<void> {
+    await AsyncStorage.setItem(KEY_TOOL_AGNO_SIMULATOR, String(enabled));
   }
 }
 

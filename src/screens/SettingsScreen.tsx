@@ -52,6 +52,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     soundEnabled: true,
   });
   const [exactAlarmAllowed, setExactAlarmAllowed] = useState(true);
+  const [isSimulatorEnabled, setIsSimulatorEnabled] = useState(true);
 
   // Logs modal state
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -65,8 +66,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     });
     notificationService.getSettings().then(setNotifSettings);
     notificationService.canScheduleExactAlarms().then(setExactAlarmAllowed);
+    AuthStorage.isAgnoSimulatorEnabled().then(setIsSimulatorEnabled);
     return unsub;
   }, []);
+
+  const handleToggleSimulator = async () => {
+    const next = !isSimulatorEnabled;
+    setIsSimulatorEnabled(next);
+    await AuthStorage.setAgnoSimulatorEnabled(next);
+  };
 
   const openUrl = async (url: string) => {
     try {
@@ -371,6 +379,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </View>
             <Text style={styles.navRowArrow}>{exactAlarmAllowed ? '✓' : '⚙️'}</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Section: Academic Tools */}
+        <Text style={styles.sectionHeader}>AKADEMİK ARAÇLAR</Text>
+        <View style={styles.card}>
+          <View style={styles.notifToggleRow}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={styles.cardRowTitle}>AGNO Simülatörü</Text>
+              <Text style={styles.cardRowSub}>
+                Ana sayfada kümülatif ve hedef AGNO hesaplayıcıyı göster
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isSimulatorEnabled ? styles.toggleBtnOn : styles.toggleBtnOff]}
+              onPress={handleToggleSimulator}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.toggleBtnText}>{isSimulatorEnabled ? 'AÇIK' : 'KAPALI'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Section 4: Open Source & Developer */}

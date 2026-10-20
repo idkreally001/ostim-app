@@ -17,12 +17,14 @@ import { useTheme, ThemeColors } from '../theme/ThemeContext';
 interface DashboardScreenProps {
   onLogout: () => void;
   onNavigateTab: (tab: string) => void;
+  onOpenSimulator?: () => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNavigateTab }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNavigateTab, onOpenSimulator }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getDashboardStyles(colors), [colors]);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [isSimulatorEnabled, setIsSimulatorEnabled] = useState(true);
   const [nextClass, setNextClass] = useState<TimetableEntry | null>(null);
   const [nextClassDateText, setNextClassDateText] = useState<string>('');
   const [currentWeather, setCurrentWeather] = useState<WeatherInfo | null>(null);
@@ -58,8 +60,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
         await AuthStorage.saveCachedTimetable(timetable);
       }
 
-      // 3. Fetch campus weather
+      // 3. Fetch campus weather and tool preferences
       weatherService.getCurrentWeather().then(setCurrentWeather);
+      AuthStorage.isAgnoSimulatorEnabled().then(setIsSimulatorEnabled);
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
       if (err.message === 'SESSION_EXPIRED') {
@@ -304,6 +307,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <Text style={styles.gridDesc}>Ödevler, teslimler ve dokümanlar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Optional Academic Simulator Tool Card */}
+      {isSimulatorEnabled && onOpenSimulator ? (
+        <TouchableOpacity
+          style={styles.simToolCard}
+          activeOpacity={0.8}
+          onPress={onOpenSimulator}
+        >
+          <View style={styles.simToolLeft}>
+            <View style={styles.simToolIconBox}>
+              <Text style={styles.simToolIcon}>🎯</Text>
+            </View>
+            <View style={styles.simToolInfo}>
+              <Text style={styles.simToolTitle}>AGNO Simülatörü</Text>
+              <Text style={styles.simToolDesc}>Kümülatif AGNO tahmini, hedef notlar ve büt senaryoları</Text>
+            </View>
+          </View>
+          <Text style={styles.simToolArrow}>➔</Text>
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 };
@@ -643,5 +666,58 @@ const getDashboardStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 15,
+  },
+  simToolCard: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: colors.isDark ? 0.12 : 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  simToolLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  simToolIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  simToolIcon: {
+    fontSize: 22,
+  },
+  simToolInfo: {
+    flex: 1,
+  },
+  simToolTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  simToolDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
+  simToolArrow: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primary,
   },
 });
