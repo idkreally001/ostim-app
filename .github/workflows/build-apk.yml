@@ -7,17 +7,29 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.1)'
+        description: 'Release Tag (e.g. v1.0.4)'
         required: false
-        default: 'v1.0.1'
+        default: 'v1.0.4'
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build Standalone APK
+    name: Build (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "arm64-v8a"
+            name: "arm64-v8a (~23MB)"
+            apk_name: "ostim-app-arm64-v8a.apk"
+            gradle_args: "-PreactNativeArchitectures=arm64-v8a"
+          - arch: "universal"
+            name: "Universal (~70MB)"
+            apk_name: "ostim-app-universal.apk"
+            gradle_args: ""
 
     steps:
       - name: 📥 Checkout repository
@@ -46,28 +58,39 @@ jobs:
       - name: 🔨 Grant Execute Permission for Gradlew
         run: chmod +x android/gradlew
 
-      - name: 🚀 Build Release APK
+      - name: 🚀 Build Release APK (${{ matrix.name }})
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon -x lint -x test
+          ./gradlew assembleRelease --no-daemon -x lint -x test ${{ matrix.gradle_args }}
 
-      - name: 📦 Prepare Release Artifact
+      - name: 📦 Prepare Artifact
         run: |
           mkdir -p build-artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk build-artifacts/ostim-app-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk build-artifacts/${{ matrix.apk_name }}
 
-      - name: 📤 Upload APK Artifact (Actions)
+      - name: 📤 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ostim-app-release-apk
-          path: build-artifacts/ostim-app-release.apk
+          name: ${{ matrix.apk_name }}
+          path: build-artifacts/${{ matrix.apk_name }}
           if-no-files-found: error
 
+  release:
+    name: Publish Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Download All APK Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
       - name: 🏷️ Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag_name != ''
         uses: softprops/action-gh-release@v2
         with:
-          files: build-artifacts/ostim-app-release.apk
+          files: release-artifacts/*.apk
           name: Ostim Mobile ${{ inputs.tag_name || github.ref_name }}
           tag_name: ${{ inputs.tag_name || github.ref_name }}
           generate_release_notes: true

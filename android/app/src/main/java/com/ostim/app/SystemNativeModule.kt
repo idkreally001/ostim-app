@@ -157,4 +157,15 @@ class SystemNativeModule(private val reactContext: ReactApplicationContext) :
             promise.reject("SETTINGS_ERROR", e.message)
         }
     }
+
+    @ReactMethod
+    fun getDeviceAbi(promise: Promise) {
+        try {
+            val supportedAbis = Build.SUPPORTED_ABIS
+            val primaryAbi = if (supportedAbis != null && supportedAbis.isNotEmpty()) supportedAbis[0] else "unknown"
+            promise.resolve(primaryAbi)
+        } catch (e: Exception) {
+            promise.resolve("unknown")
+        }
+    }
 }

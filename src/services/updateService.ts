@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { logService } from './logService';
 import { systemNative } from '../utils/systemNative';
 
-export const CURRENT_APP_VERSION = '1.0.3';
+export const CURRENT_APP_VERSION = '1.0.4';
 export const GITHUB_REPO = 'idkreally001/ostim-app';
 
 export interface UpdateInfo {
@@ -68,14 +68,32 @@ class UpdateService {
       const latestTag = release.tag_name || '';
       const hasUpdate = isRemoteNewer(latestTag, CURRENT_APP_VERSION);
 
-      // Find APK asset in release assets
+      // Smart APK selection based on device ABI
       let apkDownloadUrl: string | undefined;
       if (Array.isArray(release.assets)) {
-        const apkAsset = release.assets.find((asset: any) =>
-          asset.name && asset.name.endsWith('.apk')
-        );
-        if (apkAsset) {
-          apkDownloadUrl = apkAsset.browser_download_url;
+        const deviceAbi = await systemNative.getDeviceAbi();
+        let bestAsset = null;
+
+        if (deviceAbi.includes('arm64')) {
+          bestAsset = release.assets.find(
+            (asset: any) => asset.name && asset.name.includes('arm64-v8a') && asset.name.endsWith('.apk')
+          );
+        }
+
+        if (!bestAsset) {
+          bestAsset = release.assets.find(
+            (asset: any) => asset.name && asset.name.includes('universal') && asset.name.endsWith('.apk')
+          );
+        }
+
+        if (!bestAsset) {
+          bestAsset = release.assets.find(
+            (asset: any) => asset.name && asset.name.endsWith('.apk')
+          );
+        }
+
+        if (bestAsset) {
+          apkDownloadUrl = bestAsset.browser_download_url;
         }
       }
 

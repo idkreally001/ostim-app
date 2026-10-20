@@ -86,4 +86,19 @@ export const systemNative = {
     }
     return false;
   },
+
+  /**
+   * Returns primary device ABI (e.g., 'arm64-v8a', 'armeabi-v7a', 'x86_64').
+   */
+  async getDeviceAbi(): Promise<string> {
+    if (Platform.OS !== 'android') return 'unknown';
+    if (SystemNativeModule?.getDeviceAbi) {
+      try {
+        return await SystemNativeModule.getDeviceAbi();
+      } catch {
+        return 'unknown';
+      }
+    }
+    return 'unknown';
+  },
 };

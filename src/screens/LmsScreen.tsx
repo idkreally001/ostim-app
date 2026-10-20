@@ -27,6 +27,7 @@ import { logService } from '../services/logService';
 import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { LmsWebViewLogin } from '../components/LmsWebViewLogin';
+import { LmsDocViewerModal, LmsViewerDoc } from '../components/LmsDocViewerModal';
 
 interface LmsScreenProps {
   onSessionChange?: (connected: boolean) => void;
@@ -101,6 +102,7 @@ export const LmsScreen: React.FC<LmsScreenProps> = ({ onSessionChange }) => {
     },
   });
   const [loadingDetailsId, setLoadingDetailsId] = useState<number | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<LmsViewerDoc | null>(null);
 
   // Connect modal state
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -790,7 +792,23 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
     });
   };
 
-  const handleOpenDocument = async (doc: {
+  const handleDownloadAndOpenFile = async (url: string, title: string, type?: string) => {
+    const session = lmsClient.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.moodleSession) {
+      headers['Cookie'] = `MoodleSession=${session.moodleSession}`;
+    }
+
+    let ext = type && type !== 'resource' ? `.${type}` : '';
+    let filename = title;
+    if (ext && !filename.toLowerCase().endsWith(ext)) {
+      filename += ext;
+    }
+
+    await FileHelper.downloadAndOpenFile(url, filename, headers);
+  };
+
+  const handleOpenDocument = (doc: {
     url?: string;
     title: string;
     type?: string;
@@ -815,20 +833,56 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
       return;
     }
 
-    // For downloadable files (PDF, PPTX, DOCX, ZIP, etc.):
-    const session = lmsClient.getSession();
-    const headers: Record<string, string> = {};
-    if (session?.moodleSession) {
-      headers['Cookie'] = `MoodleSession=${session.moodleSession}`;
-    }
+    // Open in-app document viewer modal with graceful fallbacks
+    setViewerDoc({
+      title: doc.title,
+      url: doc.url,
+      type: doc.type,
+    });
+  };
 
-    let ext = doc.type && doc.type !== 'resource' ? `.${doc.type}` : '';
-    let filename = doc.title;
-    if (ext && !filename.toLowerCase().endsWith(ext)) {
-      filename += ext;
-    }
+  const handleDocumentLongPress = (doc: {
+    url?: string;
+    title: string;
+    type?: string;
+    modType?: string;
+  }) => {
+    if (!doc.url) return;
 
-    await FileHelper.downloadAndOpenFile(doc.url, filename, headers);
+    Alert.alert(
+      doc.title,
+      'Nasıl açmak istersiniz?',
+      [
+        {
+          text: '📱 Uygulama İçi Önizle',
+          onPress: () => {
+            setViewerDoc({
+              title: doc.title,
+              url: doc.url!,
+              type: doc.type,
+            });
+          },
+        },
+        {
+          text: '🌐 Tarayıcıda Aç',
+          onPress: () => {
+            Linking.openURL(doc.url!).catch(() =>
+              AppAlert.alert('Hata', 'Tarayıcıda açılamadı.')
+            );
+          },
+        },
+        {
+          text: '📥 Cihaza İndir & Paylaş',
+          onPress: () => {
+            handleDownloadAndOpenFile(doc.url!, doc.title, doc.type);
+          },
+        },
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   // Filter deadlines based on selected chip
@@ -1222,11 +1276,14 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                       key={`att-${idx}`}
                                       style={styles.docItemCard}
                                       onPress={() => handleOpenDocument(file)}
+                                      onLongPress={() => handleDocumentLongPress(file)}
+                                      delayLongPress={350}
+                                      activeOpacity={0.7}
                                     >
                                       <Text style={styles.docItemIcon}>{getFileIcon(file.type)}</Text>
                                       <View style={styles.docItemInfo}>
                                         <Text style={styles.docItemTitle}>{file.title}</Text>
-                                        <Text style={styles.docItemSub}>İndir veya Görüntüle ↗</Text>
+                                        <Text style={styles.docItemSub}>Önizle (Basılı tut: İndir/Tarayıcı) ↗</Text>
                                       </View>
                                     </TouchableOpacity>
                                   ))}
@@ -1245,6 +1302,9 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                         doc.type === 'turnitin' && styles.docItemTurnitinCard,
                                       ]}
                                       onPress={() => handleOpenDocument(doc)}
+                                      onLongPress={() => handleDocumentLongPress(doc)}
+                                      delayLongPress={350}
+                                      activeOpacity={0.7}
                                     >
                                       <Text style={styles.docItemIcon}>{getFileIcon(doc.type)}</Text>
                                       <View style={styles.docItemInfo}>
@@ -1254,7 +1314,7 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                             ? 'Turnitin Teslim Ekranı ↗'
                                             : doc.type === 'quiz'
                                             ? 'Sınav / Test ↗'
-                                            : 'Materyali Aç ↗'}
+                                            : 'Önizle (Basılı tut: Seçenekler) ↗'}
                                         </Text>
                                       </View>
                                     </TouchableOpacity>
@@ -1591,13 +1651,17 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                             sec.activities.map((act, actIdx) => {
                               const badge = getActivityBadge(act);
                               return (
-                                <View
+                                <TouchableOpacity
                                   key={`act-${actIdx}`}
                                   style={[
                                     styles.activityCard,
                                     (act.modType === 'turnitin' || act.fileType === 'turnitin') &&
                                       styles.activityCardTurnitin,
                                   ]}
+                                  onPress={() => handleOpenDocument(act)}
+                                  onLongPress={() => handleDocumentLongPress(act)}
+                                  delayLongPress={350}
+                                  activeOpacity={0.7}
                                 >
                                   <View style={styles.activityMainRow}>
                                     <Text style={styles.activityIcon}>
@@ -1624,22 +1688,21 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
                                       </View>
                                     </View>
 
-                                    <TouchableOpacity
+                                    <View
                                       style={[
                                         styles.activityActionBtn,
                                         (act.modType === 'turnitin' || act.fileType === 'turnitin') &&
                                           styles.activityActionBtnTurnitin,
                                       ]}
-                                      onPress={() => handleOpenDocument(act)}
                                     >
                                       <Text style={styles.activityActionBtnText}>
                                         {act.modType === 'assign' || act.modType === 'turnitin'
                                           ? 'Gör ↗'
                                           : 'Aç ↗'}
                                       </Text>
-                                    </TouchableOpacity>
+                                    </View>
                                   </View>
-                                </View>
+                                </TouchableOpacity>
                               );
                             })
                           )}
@@ -1812,6 +1875,19 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
           </View>
         </View>
       </Modal>
+
+      {/* In-App Document & Slide Viewer Modal with Graceful Fallback */}
+      <LmsDocViewerModal
+        visible={!!viewerDoc}
+        doc={viewerDoc}
+        onClose={() => setViewerDoc(null)}
+        onOpenInBrowser={(url) => {
+          Linking.openURL(url).catch(() => AppAlert.alert('Hata', 'Bağlantı açılamadı.'));
+        }}
+        onDownloadAndShare={(url, title) => {
+          handleDownloadAndOpenFile(url, title, viewerDoc?.type);
+        }}
+      />
     </View>
   );
 };
