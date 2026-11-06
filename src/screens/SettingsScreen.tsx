@@ -17,6 +17,7 @@ import { FileHelper } from '../utils/fileHelper';
 import { UpdateModal } from '../components/UpdateModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { notificationService, NotificationSettings } from '../services/notificationService';
+import { DebugDiagnosticsService } from '../services/debugService';
 
 interface SettingsScreenProps {
   onClose: () => void;
@@ -142,10 +143,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     if (ok) {
       AppAlert.alert(
         'Bildirim Gönderildi',
-        'Test bildirimi durum çubuğuna iletildi. Tekrar bastığınızda yeni bir bildirim üretmek yerine mevcut bildirim güncellenecektir (Duolingo tarzı tek slot).'
+        'Ders hatırlatıcı bildirimi durum çubuğuna başarıyla iletildi.',
+        undefined,
+        '🔔'
       );
     } else {
-      AppAlert.alert('Bilgi', 'Bildirim izni kapalı olabilir veya Android bildirim servisi hazır değil.');
+      AppAlert.alert(
+        'Bildirim İzni Gerekli',
+        'Bildirim izni kapalı olabilir veya sistem bildirim servisi henüz hazır değil. Lütfen cihaz ayarlarından izinleri kontrol edin.',
+        undefined,
+        '⚠️'
+      );
     }
   };
 
@@ -185,16 +193,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       AppAlert.alert('Bilgi', 'Dışa aktarılacak günlük kaydı yok.');
       return;
     }
-    const content = logs
-      .map(
-        (l) =>
-          `[${l.timestamp}] [${l.level.toUpperCase()}] [${l.tag}] ${l.message} ${
-            l.details ? l.details : ''
-          }`
-      )
-      .join('\n');
-
-    await FileHelper.exportAndShareFile('ostim_app_logs.txt', content, 'text/plain');
+    const ok = await DebugDiagnosticsService.exportSanitizedReport();
+    if (!ok) {
+      AppAlert.alert('Bilgi', 'Dışa aktarılacak günlük kaydı yok.');
+    }
   };
 
   const filteredLogs = logFilter === 'error' ? logs.filter((l) => l.level === 'error') : logs;
@@ -490,8 +492,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <View style={styles.navRowLeft}>
               <Text style={styles.navRowIcon}>🔔</Text>
               <View>
-                <Text style={styles.navRowTitle}>Test Bildirimi Gönder (Geliştirici)</Text>
-                <Text style={styles.cardRowSub}>Duolingo tarzı tek slotlu bildirim testi</Text>
+                <Text style={styles.navRowTitle}>Test Bildirimi Gönder</Text>
+                <Text style={styles.cardRowSub}>Durum çubuğunda örnek ders hatırlatıcısını gösterir</Text>
               </View>
             </View>
             <Text style={styles.navRowArrow}>🚀</Text>

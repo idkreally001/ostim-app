@@ -19,6 +19,13 @@ const getServiceEndpoint = () => {
   return `${LMS_BASE_URL}/lib/ajax/service.php`;
 };
 
+export class LmsSessionExpiredError extends Error {
+  constructor(message = 'LMS oturum süresi doldu. Lütfen tekrar giriş yapın.') {
+    super(message);
+    this.name = 'LmsSessionExpiredError';
+  }
+}
+
 export class OstimLmsClient {
   private sesskey: string | null = null;
   private moodleSession: string | null = null;
@@ -94,6 +101,9 @@ export class OstimLmsClient {
 
     if (!response.ok) {
       logService.error('LMS HTTP Error', `Status ${response.status}`, { methodname });
+      if (response.status === 401 || response.status === 403) {
+        throw new LmsSessionExpiredError();
+      }
       throw new Error(`LMS Sunucu Hatası (${response.status})`);
     }
 
@@ -105,8 +115,21 @@ export class OstimLmsClient {
 
     const result = data[0];
     if (result.error) {
+      const exceptionName = result.exception?.errorcode || result.exception?.name || '';
       const errMsg = result.exception?.message || 'Bilinmeyen Moodle hatası';
       logService.error('LMS Exception', errMsg, result.exception);
+
+      // Detect Moodle session expiration error codes
+      if (
+        exceptionName === 'servicerequireslogin' ||
+        exceptionName === 'invalidsesskey' ||
+        exceptionName === 'sessionerroruser' ||
+        errMsg.toLowerCase().includes('oturum') ||
+        errMsg.toLowerCase().includes('login')
+      ) {
+        throw new LmsSessionExpiredError(errMsg);
+      }
+
       throw new Error(errMsg);
     }
 

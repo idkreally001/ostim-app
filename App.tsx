@@ -29,6 +29,7 @@ import { AgnoSimulatorScreen } from './src/screens/AgnoSimulatorScreen';
 import { updateService, UpdateInfo } from './src/services/updateService';
 import { UpdateModal } from './src/components/UpdateModal';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { DialogProvider } from './src/components/MaterialDialog';
 
 type Portal = 'obs' | 'lms';
 type ObsTab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
@@ -562,7 +563,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <DialogProvider>
+        <AppContent />
+      </DialogProvider>
     </ThemeProvider>
   );
 }

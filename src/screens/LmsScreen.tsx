@@ -670,11 +670,23 @@ const INITIAL_COURSE_SECTIONS: Record<number, LmsCourseSection[]> = {
       });
     } catch (err: any) {
       logService.error('LmsScreen', 'Sync error', err.message);
-      // If error indicates invalid sesskey, inform user
-      if (err.message?.includes('sesskey') || err.message?.includes('oturum')) {
-        AppAlert.alert(
-          'Oturum Süresi Doldu',
-          'LMS oturumunuzun süresi dolmuş olabilir. Lütfen Moodle oturumunu yenileyin.'
+      // If error indicates session expiry, prompt user and offer immediate reconnect
+      if (
+        err.name === 'LmsSessionExpiredError' ||
+        err.message?.includes('sesskey') ||
+        err.message?.includes('oturum') ||
+        err.message?.includes('login')
+      ) {
+        AppAlert.confirm(
+          'Moodle Oturumu Sona Erdi',
+          'LMS / Moodle oturumunuzun süresi doldu. Dersleri ve ödevleri güncel tutmak için lütfen oturumunuzu yenileyin.',
+          () => {
+            setShowWebViewLogin(true);
+          },
+          undefined,
+          'Giriş Yap',
+          'Daha Sonra',
+          '🔒'
         );
       }
     } finally {

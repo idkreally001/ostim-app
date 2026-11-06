@@ -27,7 +27,7 @@ export const systemNative = {
 
   /**
    * Displays a single notification with fixed ID 1001.
-   * Multiple calls update the existing notification without tray spam (Duolingo-style).
+   * Updates existing notification in place to prevent tray spam.
    */
   async showLessonNotification(title: string, message: string): Promise<boolean> {
     if (Platform.OS !== 'android') return false;

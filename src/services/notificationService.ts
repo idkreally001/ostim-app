@@ -48,8 +48,8 @@ class NotificationService {
   }
 
   /**
-   * Pushes a single, deduplicated test notification.
-   * Multiple triggers will update the single existing notification in place (Duolingo-style).
+   * Pushes a single, deduplicated lesson notification.
+   * Updates in place to prevent notification clutter.
    */
   async sendTestNotification(): Promise<boolean> {
     const title = '🔔 Sıradaki Ders: Algoritmalar & Veri Yapıları';
