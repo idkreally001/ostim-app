@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ostim-app",
-    "slug": "ostim-app",
+    "name": "OstimOne",
+    "slug": "ostimone",
     "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

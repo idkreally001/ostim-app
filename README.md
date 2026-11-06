@@ -1,4 +1,4 @@
-# OSTİM Mobile (Öğrenci Portalı)
+# OstimOne (Öğrenci Portalı)
 
 > Modern, açık kaynaklı ve 100% istemci taraflı (sunucusuz) OSTİM Teknik Üniversitesi Öğrenci Bilgi Sistemi (OBS) ve LMS mobil istemcisi.
 
