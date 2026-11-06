@@ -1,26 +1,37 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppRuntimeConfig, EncryptedPayload, decryptAppConfig } from '../crypto/configCrypto';
+import embeddedPayload from '../../config.enc';
 
 const CONFIG_CACHE_KEY = '@ostim_app_runtime_config_v1';
 
-// Default fallback configuration (used if offline and no cache exists)
-const FALLBACK_CONFIG: AppRuntimeConfig = {
-  version: 1,
-  obs: {
-    baseUrl: process.env.EXPO_PUBLIC_OBS_BASE_URL || 'https://obs.ostimteknik.edu.tr/ProlizMobileAPI_V4/api',
-    aesKey: process.env.EXPO_PUBLIC_OBS_AES_KEY || '',
-    uniCode: process.env.EXPO_PUBLIC_OBS_UNI_CODE || 'OST',
-    secret: process.env.EXPO_PUBLIC_OBS_SECRET || '',
-    uniToken: process.env.EXPO_PUBLIC_OBS_UNI_TOKEN || '',
-  },
-  lms: {
-    tokenUrl: process.env.EXPO_PUBLIC_LMS_TOKEN_URL || 'https://lmsclus.ostimteknik.edu.tr/login/token.php',
-    serviceUrl: process.env.EXPO_PUBLIC_LMS_SERVICE_URL || 'https://lmsclus.ostimteknik.edu.tr/webservice/rest/server.php',
-  },
+// Decrypt bundled payload if master key is available at build time
+const getBundledConfig = (): AppRuntimeConfig => {
+  const masterKey = process.env.EXPO_PUBLIC_APP_CONFIG_KEY;
+  if (masterKey && embeddedPayload?.cipher) {
+    try {
+      return decryptAppConfig(embeddedPayload as EncryptedPayload, masterKey);
+    } catch (e: any) {
+      console.warn('[ConfigManager] Failed to decrypt bundled config.enc:', e.message);
+    }
+  }
+  return {
+    version: 1,
+    obs: {
+      baseUrl: process.env.EXPO_PUBLIC_OBS_BASE_URL || 'https://obs.ostimteknik.edu.tr/ProlizMobileAPI_V4/api',
+      aesKey: process.env.EXPO_PUBLIC_OBS_AES_KEY || '',
+      uniCode: process.env.EXPO_PUBLIC_OBS_UNI_CODE || 'OST',
+      secret: process.env.EXPO_PUBLIC_OBS_SECRET || '',
+      uniToken: process.env.EXPO_PUBLIC_OBS_UNI_TOKEN || '',
+    },
+    lms: {
+      tokenUrl: process.env.EXPO_PUBLIC_LMS_TOKEN_URL || 'https://lmsclus.ostimteknik.edu.tr/login/token.php',
+      serviceUrl: process.env.EXPO_PUBLIC_LMS_SERVICE_URL || 'https://lmsclus.ostimteknik.edu.tr/webservice/rest/server.php',
+    },
+  };
 };
 
 class ConfigManager {
-  private currentConfig: AppRuntimeConfig = FALLBACK_CONFIG;
+  private currentConfig: AppRuntimeConfig = getBundledConfig();
   private isLoaded: boolean = false;
 
   public async initialize(): Promise<AppRuntimeConfig> {

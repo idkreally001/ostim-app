@@ -3,6 +3,11 @@ const https = require('https');
 
 const config = getDefaultConfig(__dirname);
 
+// Enable importing .enc (JSON payload) directly into JavaScript bundle
+if (!config.resolver.sourceExts.includes('enc')) {
+  config.resolver.sourceExts.push('enc');
+}
+
 const originalEnhanceMiddleware = config.server?.enhanceMiddleware;
 
 config.server = {

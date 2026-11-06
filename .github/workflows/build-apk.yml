@@ -63,6 +63,9 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: 🚀 Build Release APK (${{ matrix.name }})
+        env:
+          EXPO_PUBLIC_APP_CONFIG_KEY: ${{ secrets.APP_CONFIG_KEY }}
+          EXPO_PUBLIC_REMOTE_CONFIG_URL: "https://raw.githubusercontent.com/idkreally001/ostim-app/main/config.enc"
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon -x lint -x test ${{ matrix.gradle_args }}
