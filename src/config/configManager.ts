@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppRuntimeConfig, EncryptedPayload, decryptAppConfig } from '../crypto/configCrypto';
-import embeddedPayload from '../../config.enc';
+import embeddedPayload from './bundledPayload.json';
 
 const CONFIG_CACHE_KEY = '@ostim_app_runtime_config_v1';
 

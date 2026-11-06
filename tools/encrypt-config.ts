@@ -51,7 +51,10 @@ function main() {
   const outPath = path.resolve(__dirname, '../config.enc');
   fs.writeFileSync(outPath, JSON.stringify(encrypted, null, 2), 'utf-8');
 
-  console.log('✅ Successfully generated encrypted config at config.enc');
+  const bundledJsonPath = path.resolve(__dirname, '../src/config/bundledPayload.json');
+  fs.writeFileSync(bundledJsonPath, JSON.stringify(encrypted, null, 2), 'utf-8');
+
+  console.log('✅ Successfully generated encrypted config at config.enc and src/config/bundledPayload.json');
   console.log(`   Config version: ${encrypted.version}`);
   console.log(`   Ciphertext length: ${encrypted.cipher.length} chars`);
 }
