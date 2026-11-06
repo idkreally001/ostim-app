@@ -95,7 +95,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release-artifacts/*.apk
-          name: Ostim Mobile ${{ inputs.tag_name || github.ref_name }}
+          name: OstimOne ${{ inputs.tag_name || github.ref_name }}
           tag_name: ${{ inputs.tag_name || github.ref_name }}
           generate_release_notes: true
           draft: false
