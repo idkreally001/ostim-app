@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -155,6 +156,122 @@ class SystemNativeModule(private val reactContext: ReactApplicationContext) :
             }
         } catch (e: Exception) {
             promise.reject("SETTINGS_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun areNotificationsEnabled(promise: Promise) {
+        try {
+            val enabled = NotificationManagerCompat.from(reactContext).areNotificationsEnabled()
+            promise.resolve(enabled)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun openNotificationSettings(promise: Promise) {
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, reactContext.packageName)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${reactContext.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            reactContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SETTINGS_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun scheduleLessonAlarm(alarmId: Int, triggerAtMillis: Double, title: String, message: String, promise: Promise) {
+        try {
+            val alarmManager = reactContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            if (alarmManager == null) {
+                promise.reject("ALARM_ERROR", "AlarmManager not available")
+                return
+            }
+
+            val intent = Intent(reactContext, AlarmReceiver::class.java).apply {
+                action = "com.ostim.app.ACTION_LESSON_ALARM"
+                putExtra("alarmId", alarmId)
+                putExtra("title", title)
+                putExtra("message", message)
+            }
+
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            val pendingIntent = PendingIntent.getBroadcast(reactContext, alarmId, intent, flags)
+            val triggerTime = triggerAtMillis.toLong()
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+            }
+
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ALARM_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun cancelLessonAlarm(alarmId: Int, promise: Promise) {
+        try {
+            val alarmManager = reactContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            val intent = Intent(reactContext, AlarmReceiver::class.java).apply {
+                action = "com.ostim.app.ACTION_LESSON_ALARM"
+            }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_NO_CREATE
+            }
+            val pendingIntent = PendingIntent.getBroadcast(reactContext, alarmId, intent, flags)
+            if (pendingIntent != null && alarmManager != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("CANCEL_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun cancelAllLessonAlarms(maxAlarms: Int, promise: Promise) {
+        try {
+            val alarmManager = reactContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            val intent = Intent(reactContext, AlarmReceiver::class.java).apply {
+                action = "com.ostim.app.ACTION_LESSON_ALARM"
+            }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_NO_CREATE
+            }
+            for (id in 1000..(1000 + maxAlarms)) {
+                val pendingIntent = PendingIntent.getBroadcast(reactContext, id, intent, flags)
+                if (pendingIntent != null && alarmManager != null) {
+                    alarmManager.cancel(pendingIntent)
+                    pendingIntent.cancel()
+                }
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
         }
     }
 

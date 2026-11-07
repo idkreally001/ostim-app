@@ -14,16 +14,17 @@ import { AuthStorage } from '../storage/authStorage';
 import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { TimetableEntry } from '../types/models';
+import { notificationService } from '../services/notificationService';
 import { useTheme } from '../theme/ThemeContext';
 
 const DAYS = [
-  { id: 0, label: 'Pzt' },
-  { id: 1, label: 'Sal' },
-  { id: 2, label: 'Çar' },
-  { id: 3, label: 'Per' },
-  { id: 4, label: 'Cum' },
-  { id: 5, label: 'Cmt' },
-  { id: 6, label: 'Paz' },
+  { id: 0, label: 'Pzt', fullName: 'Pazartesi' },
+  { id: 1, label: 'Sal', fullName: 'Salı' },
+  { id: 2, label: 'Çar', fullName: 'Çarşamba' },
+  { id: 3, label: 'Per', fullName: 'Perşembe' },
+  { id: 4, label: 'Cum', fullName: 'Cuma' },
+  { id: 5, label: 'Cmt', fullName: 'Cumartesi' },
+  { id: 6, label: 'Paz', fullName: 'Pazar' },
 ];
 
 export const TimetableScreen: React.FC = () => {
@@ -54,6 +55,7 @@ export const TimetableScreen: React.FC = () => {
         setSchedule(data);
         setIsOffline(false);
         await AuthStorage.saveCachedTimetable(data);
+        notificationService.scheduleAllLessonAlarms(data).catch(() => {});
       }
     } catch (err: any) {
       console.warn('Failed to load timetable:', err.message);
@@ -230,14 +232,23 @@ export const TimetableScreen: React.FC = () => {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>🎉</Text>
               <Text style={styles.emptyTitle}>
-                {isSelectedToday ? 'Bugün ders yok!' : `${DAYS[selectedDay]?.label || 'Bu gün'} için ders yok`}
+                {isSelectedToday ? 'Bugün ders yok!' : `${DAYS[selectedDay]?.fullName || 'Bu gün'} günü için ders yok`}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {isSelectedToday ? 'İstediğiniz gibi dinlenebilirsiniz.' : 'Seçilen güne ait planlanmış ders bulunmuyor.'}
+                {isSelectedToday ? 'İstediğiniz gibi dinlenebilirsiniz.' : `${DAYS[selectedDay]?.fullName || 'Seçilen'} gününe ait planlanmış ders bulunmuyor.`}
               </Text>
             </View>
           ) : (
-            dayClasses.map((item, idx) => (
+            <>
+              <View style={styles.listHeaderRow}>
+                <Text style={[styles.listHeaderDay, { color: colors.text }]}>
+                  {DAYS[selectedDay]?.fullName || ''}
+                </Text>
+                <Text style={[styles.listHeaderCount, { color: colors.textMuted }]}>
+                  {dayClasses.length} ders
+                </Text>
+              </View>
+              {dayClasses.map((item, idx) => (
               <View key={`${item.courseCode}-${idx}`} style={styles.classCard}>
                 <View style={styles.timeColumn}>
                   <Text style={styles.startTime}>{item.startTime}</Text>
@@ -259,7 +270,8 @@ export const TimetableScreen: React.FC = () => {
                   </View>
                 </View>
               </View>
-            ))
+            ))}
+            </>
           )}
         </ScrollView>
       )}
@@ -360,6 +372,22 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     padding: 16,
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  listHeaderDay: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  listHeaderCount: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   centerContainer: {
     flex: 1,

@@ -8,6 +8,7 @@ import {
   Linking,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from 'react-native';
 import { CURRENT_APP_VERSION, GITHUB_REPO, updateService, UpdateInfo } from '../services/updateService';
 import { logService, LogEntry } from '../services/logService';
@@ -16,6 +17,7 @@ import { AppAlert } from '../utils/alertHelper';
 import { FileHelper } from '../utils/fileHelper';
 import { UpdateModal } from '../components/UpdateModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n';
 import { notificationService, NotificationSettings } from '../services/notificationService';
 import { DebugDiagnosticsService } from '../services/debugService';
 
@@ -43,6 +45,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   // Theme state
   const { themeMode, setThemeMode, colors } = useTheme();
+  const { language, setLanguage, languages, t } = useLanguage();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   // Notification settings state
@@ -54,6 +57,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   });
   const [exactAlarmAllowed, setExactAlarmAllowed] = useState(true);
   const [isSimulatorEnabled, setIsSimulatorEnabled] = useState(true);
+
+  // Custom reminder duration modal state
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customMinutesInput, setCustomMinutesInput] = useState('15');
 
   // Logs modal state
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -117,15 +124,51 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const handleToggleNotifications = async () => {
+    if (!notifSettings.enabled) {
+      const granted = await notificationService.checkAndRequestPermissions();
+      if (!granted) {
+        AppAlert.confirm(
+          'Bildirim İzni Gerekli',
+          'Ders hatırlatıcılarını alabilmek için sistem bildirim izni vermeniz gerekir. Cihaz uygulama bildirim ayarlarını açmak ister misiniz?',
+          () => {
+            notificationService.openNotificationSettings();
+          },
+          undefined,
+          'Ayarları Aç',
+          'Vazgeç'
+        );
+        return;
+      }
+    }
+
     const next = { ...notifSettings, enabled: !notifSettings.enabled };
     setNotifSettings(next);
     await notificationService.saveSettings(next);
+
+    const cachedTimetable = await AuthStorage.getCachedTimetable();
+    if (cachedTimetable && cachedTimetable.length > 0) {
+      await notificationService.scheduleAllLessonAlarms(cachedTimetable);
+    }
   };
 
   const handleSetLeadMinutes = async (m: number) => {
     const next = { ...notifSettings, leadMinutes: m };
     setNotifSettings(next);
     await notificationService.saveSettings(next);
+    const cachedTimetable = await AuthStorage.getCachedTimetable();
+    if (cachedTimetable && cachedTimetable.length > 0) {
+      await notificationService.scheduleAllLessonAlarms(cachedTimetable);
+    }
+  };
+
+  const handleSaveCustomMinutes = async () => {
+    const parsed = parseInt(customMinutesInput, 10);
+    if (isNaN(parsed) || parsed < 1 || parsed > 300) {
+      AppAlert.alert('Geçersiz Süre', 'Lütfen 1 ile 300 dakika arasında geçerli bir süre girin.');
+      return;
+    }
+    setShowCustomModal(false);
+    await handleSetLeadMinutes(parsed);
   };
 
   const handleToggleDay = async (dayIdx: number) => {
@@ -136,6 +179,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const next = { ...notifSettings, selectedDays };
     setNotifSettings(next);
     await notificationService.saveSettings(next);
+    const cachedTimetable = await AuthStorage.getCachedTimetable();
+    if (cachedTimetable && cachedTimetable.length > 0) {
+      await notificationService.scheduleAllLessonAlarms(cachedTimetable);
+    }
   };
 
   const handleSendTestNotification = async () => {
@@ -272,6 +319,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.divider} />
+          <Text style={styles.cardRowTitle}>Uygulama Dili / Language</Text>
+          <Text style={styles.cardRowSub}>Arayüz dili (7 dil desteklenir)</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.langSelectorRow}
+          >
+            {languages.map((item) => {
+              const isActive = language === item.code;
+              return (
+                <TouchableOpacity
+                  key={item.code}
+                  style={[styles.langChip, isActive && styles.langChipActive]}
+                  onPress={() => setLanguage(item.code)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.langFlag}>{item.flag}</Text>
+                  <Text style={[styles.langName, isActive && styles.langNameActive]}>
+                    {item.nativeName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Section 2: Update & Server */}
@@ -328,7 +401,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <View style={styles.divider} />
               <Text style={styles.subSectionTitle}>Hatırlatma Süresi</Text>
               <View style={styles.leadMinutesRow}>
-                {[10, 15, 30, 45].map((m) => (
+                {[10, 15, 30, 45, 60].map((m) => (
                   <TouchableOpacity
                     key={m}
                     style={[styles.leadChip, notifSettings.leadMinutes === m && styles.leadChipActive]}
@@ -340,6 +413,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     </Text>
                   </TouchableOpacity>
                 ))}
+                {![10, 15, 30, 45, 60].includes(notifSettings.leadMinutes) ? (
+                  <View style={[styles.leadChip, styles.leadChipActive]}>
+                    <Text style={[styles.leadChipText, styles.leadChipTextActive]}>
+                      {notifSettings.leadMinutes} dk
+                    </Text>
+                  </View>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.leadChip, styles.leadChipCustom]}
+                  onPress={() => {
+                    setCustomMinutesInput(String(notifSettings.leadMinutes));
+                    setShowCustomModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.leadChipCustomText}>✏️ Özel...</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.divider} />
@@ -597,6 +687,73 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         onDismiss={() => setShowUpdateModal(false)}
       />
 
+      {/* Custom Reminder Lead Time Modal */}
+      <Modal
+        visible={showCustomModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCustomModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.customModalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.customModalTitle, { color: colors.text }]}>Özel Hatırlatma Süresi</Text>
+            <Text style={[styles.customModalSubtitle, { color: colors.textSecondary }]}>
+              Ders başlamadan kaç dakika önce bildirim almak istersiniz?
+            </Text>
+
+            <View style={styles.customInputRow}>
+              <TextInput
+                style={[styles.customMinutesInput, { color: colors.text, borderColor: colors.cardBorder, backgroundColor: colors.cardAlt }]}
+                keyboardType="numeric"
+                value={customMinutesInput}
+                onChangeText={setCustomMinutesInput}
+                placeholder="Örn: 20"
+                placeholderTextColor={colors.textMuted}
+                maxLength={3}
+              />
+              <Text style={[styles.customInputUnit, { color: colors.text }]}>dakika önce</Text>
+            </View>
+
+            {/* Quick +/- Stepper Buttons */}
+            <View style={styles.stepperRow}>
+              {[-15, -5, 5, 15].map((delta) => (
+                <TouchableOpacity
+                  key={delta}
+                  style={[styles.stepperBtn, { backgroundColor: colors.cardAlt, borderColor: colors.cardBorder }]}
+                  onPress={() => {
+                    const cur = parseInt(customMinutesInput, 10) || 0;
+                    const next = Math.max(1, Math.min(300, cur + delta));
+                    setCustomMinutesInput(String(next));
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.stepperBtnText, { color: colors.primary }]}>
+                    {delta > 0 ? `+${delta}` : delta}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.customModalActions}>
+              <TouchableOpacity
+                style={[styles.customModalBtn, styles.customModalBtnCancel]}
+                onPress={() => setShowCustomModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.customModalBtnCancelText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.customModalBtn, styles.customModalBtnConfirm]}
+                onPress={handleSaveCustomMinutes}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.customModalBtnConfirmText}>Kaydet</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Detailed Logs Modal */}
       <Modal
         visible={showLogsModal}
@@ -839,6 +996,39 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.primary,
     fontWeight: '800',
   },
+  langSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingBottom: 4,
+  },
+  langChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  langChipActive: {
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primary,
+  },
+  langFlag: {
+    fontSize: 16,
+  },
+  langName: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  langNameActive: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
   notifToggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -876,7 +1066,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 6,
   },
   leadChip: {
-    flex: 1,
+    paddingHorizontal: 10,
     paddingVertical: 7,
     alignItems: 'center',
     borderRadius: 8,
@@ -887,6 +1077,16 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   leadChipActive: {
     backgroundColor: colors.primarySubtle,
     borderColor: colors.primary,
+  },
+  leadChipCustom: {
+    backgroundColor: colors.cardAlt,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  leadChipCustomText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   leadChipText: {
     color: colors.textSecondary,
@@ -1194,5 +1394,97 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.cardAlt,
     padding: 6,
     borderRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  customModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: 'center',
+  },
+  customModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  customModalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  customInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  customMinutesInput: {
+    width: 90,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  customInputUnit: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  stepperBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  stepperBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  customModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  customModalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customModalBtnCancel: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  customModalBtnCancelText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  customModalBtnConfirm: {
+    backgroundColor: colors.primary,
+  },
+  customModalBtnConfirmText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

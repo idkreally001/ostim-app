@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { logService } from './logService';
 import { systemNative } from '../utils/systemNative';
 
-export const CURRENT_APP_VERSION = '1.1.2';
+export const CURRENT_APP_VERSION = '1.2.0';
 export const GITHUB_REPO = 'idkreally001/ostim-app';
 
 export interface UpdateInfo {

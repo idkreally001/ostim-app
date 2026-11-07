@@ -88,6 +88,87 @@ export const systemNative = {
   },
 
   /**
+   * Checks if app has system notification permission granted.
+   */
+  async areNotificationsEnabled(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+    if (SystemNativeModule?.areNotificationsEnabled) {
+      try {
+        return await SystemNativeModule.areNotificationsEnabled();
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  },
+
+  /**
+   * Opens Android Notification Settings page for the app.
+   */
+  async openNotificationSettings(): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    if (SystemNativeModule?.openNotificationSettings) {
+      try {
+        return await SystemNativeModule.openNotificationSettings();
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Schedules an exact system alarm for an upcoming lesson.
+   */
+  async scheduleLessonAlarm(
+    alarmId: number,
+    triggerAtMillis: number,
+    title: string,
+    message: string
+  ): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    if (SystemNativeModule?.scheduleLessonAlarm) {
+      try {
+        return await SystemNativeModule.scheduleLessonAlarm(alarmId, triggerAtMillis, title, message);
+      } catch (err) {
+        console.warn('scheduleLessonAlarm failed:', err);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Cancels a specific scheduled lesson alarm.
+   */
+  async cancelLessonAlarm(alarmId: number): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    if (SystemNativeModule?.cancelLessonAlarm) {
+      try {
+        return await SystemNativeModule.cancelLessonAlarm(alarmId);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Cancels all scheduled lesson alarms.
+   */
+  async cancelAllLessonAlarms(maxAlarms: number = 200): Promise<boolean> {
+    if (Platform.OS !== 'android') return false;
+    if (SystemNativeModule?.cancelAllLessonAlarms) {
+      try {
+        return await SystemNativeModule.cancelAllLessonAlarms(maxAlarms);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /**
    * Returns primary device ABI (e.g., 'arm64-v8a', 'armeabi-v7a', 'x86_64').
    */
   async getDeviceAbi(): Promise<string> {

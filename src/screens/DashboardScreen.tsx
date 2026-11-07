@@ -12,6 +12,7 @@ import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { StudentProfile, TimetableEntry } from '../types/models';
 import { weatherService, WeatherInfo, LessonWeatherSummary } from '../services/weatherService';
+import { notificationService } from '../services/notificationService';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 interface DashboardScreenProps {
@@ -58,6 +59,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       findNextClass(timetable);
       if (timetable && timetable.length > 0) {
         await AuthStorage.saveCachedTimetable(timetable);
+        notificationService.scheduleAllLessonAlarms(timetable).catch(() => {});
       }
 
       // 3. Fetch campus weather and tool preferences
