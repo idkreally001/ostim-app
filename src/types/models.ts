@@ -15,7 +15,7 @@ export interface TimetableEntry {
   courseCode: string;
   courseName: string;
   dayName: string;
-  dayId: number; // 1 = Monday, etc.
+  dayId: number; // 0 = Monday, ..., 5 = Saturday, 6 = Sunday
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   classroom: string;

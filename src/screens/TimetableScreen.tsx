@@ -22,6 +22,8 @@ const DAYS = [
   { id: 2, label: 'Çar' },
   { id: 3, label: 'Per' },
   { id: 4, label: 'Cum' },
+  { id: 5, label: 'Cmt' },
+  { id: 6, label: 'Paz' },
 ];
 
 export const TimetableScreen: React.FC = () => {
@@ -29,8 +31,8 @@ export const TimetableScreen: React.FC = () => {
   const [schedule, setSchedule] = useState<TimetableEntry[]>([]);
   const [isOffline, setIsOffline] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(() => {
-    const day = new Date().getDay(); // 1=Mon ... 5=Fri
-    return day >= 1 && day <= 5 ? day - 1 : 0;
+    const day = new Date().getDay(); // 0=Sun, 1=Mon ... 6=Sat
+    return day === 0 ? 6 : day - 1;
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,6 +80,8 @@ export const TimetableScreen: React.FC = () => {
       2: 'Çarşamba',
       3: 'Perşembe',
       4: 'Cuma',
+      5: 'Cumartesi',
+      6: 'Pazar',
     };
 
     const rows = [
@@ -109,11 +113,19 @@ export const TimetableScreen: React.FC = () => {
 
     const icsDays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
     let eventsStr = '';
+    // Base Monday Oct 19, 2026 for accurate recurring weekday alignment
+    const baseMonday = new Date(2026, 9, 19);
 
     schedule.forEach((item, index) => {
       const dayCode = icsDays[item.dayId] || 'MO';
       const cleanStart = item.startTime.replace(':', '') + '00';
       const cleanEnd = item.endTime.replace(':', '') + '00';
+
+      const classDate = new Date(baseMonday.getTime() + item.dayId * 86400000);
+      const y = classDate.getFullYear();
+      const m = String(classDate.getMonth() + 1).padStart(2, '0');
+      const d = String(classDate.getDate()).padStart(2, '0');
+      const datePrefix = `${y}${m}${d}`;
 
       eventsStr += `BEGIN:VEVENT\r\n`;
       eventsStr += `UID:ostim-class-${item.courseCode}-${item.dayId}-${index}@ostim.edu.tr\r\n`;
@@ -121,8 +133,8 @@ export const TimetableScreen: React.FC = () => {
       eventsStr += `LOCATION:${item.classroom}\r\n`;
       eventsStr += `DESCRIPTION:Derslik: ${item.classroom}\\nÖğretim Elemanı: ${item.instructor || 'Belirtilmedi'}\r\n`;
       eventsStr += `RRULE:FREQ=WEEKLY;BYDAY=${dayCode}\r\n`;
-      eventsStr += `DTSTART;TZID=Europe/Istanbul:20261019T${cleanStart}\r\n`;
-      eventsStr += `DTEND;TZID=Europe/Istanbul:20261019T${cleanEnd}\r\n`;
+      eventsStr += `DTSTART;TZID=Europe/Istanbul:${datePrefix}T${cleanStart}\r\n`;
+      eventsStr += `DTEND;TZID=Europe/Istanbul:${datePrefix}T${cleanEnd}\r\n`;
       eventsStr += `END:VEVENT\r\n`;
     });
 
@@ -148,34 +160,44 @@ export const TimetableScreen: React.FC = () => {
     .filter((c) => c.dayId === selectedDay)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  const isSelectedToday = selectedDay === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Top Bar with Day Tabs and Export Buttons */}
+      {/* Top Bar with Actions & Day Tabs */}
       <View style={[styles.tabBar, { backgroundColor: colors.headerBg, borderBottomColor: colors.cardBorder }]}>
+        <View style={styles.topActionsRow}>
+          <Text style={[styles.scheduleSubtitle, { color: colors.textSecondary }]}>Haftalık Program</Text>
+          <View style={styles.exportGroup}>
+            <TouchableOpacity style={styles.exportBtn} onPress={exportCsv} activeOpacity={0.7}>
+              <Text style={styles.exportBtnText}>📥 CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtnIcs} onPress={exportIcs} activeOpacity={0.7}>
+              <Text style={styles.exportBtnIcsText}>📅 Takvim</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.daysRow}>
           {DAYS.map((day) => {
             const isActive = day.id === selectedDay;
+            const hasClasses = schedule.some((c) => c.dayId === day.id);
             return (
               <TouchableOpacity
                 key={day.id}
                 style={[styles.tab, isActive && styles.activeTab]}
                 onPress={() => setSelectedDay(day.id)}
+                activeOpacity={0.7}
               >
                 <Text style={[styles.tabText, isActive && styles.activeTabText]}>
                   {day.label}
                 </Text>
+                {hasClasses ? (
+                  <View style={[styles.dayDot, isActive && styles.dayDotActive]} />
+                ) : null}
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        <View style={styles.exportGroup}>
-          <TouchableOpacity style={styles.exportBtn} onPress={exportCsv} activeOpacity={0.7}>
-            <Text style={styles.exportBtnText}>📥 CSV</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.exportBtnIcs} onPress={exportIcs} activeOpacity={0.7}>
-            <Text style={styles.exportBtnIcsText}>📅 Takvim</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -207,8 +229,12 @@ export const TimetableScreen: React.FC = () => {
           {dayClasses.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>🎉</Text>
-              <Text style={styles.emptyTitle}>Bugün ders yok!</Text>
-              <Text style={styles.emptySubtitle}>İstediğiniz gibi dinlenebilirsiniz.</Text>
+              <Text style={styles.emptyTitle}>
+                {isSelectedToday ? 'Bugün ders yok!' : `${DAYS[selectedDay]?.label || 'Bu gün'} için ders yok`}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {isSelectedToday ? 'İstediğiniz gibi dinlenebilirsiniz.' : 'Seçilen güne ait planlanmış ders bulunmuyor.'}
+              </Text>
             </View>
           ) : (
             dayClasses.map((item, idx) => (
@@ -247,38 +273,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#090d16',
   },
   tabBar: {
-    flexDirection: 'row',
     backgroundColor: '#111827',
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
+  },
+  topActionsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  scheduleSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   daysRow: {
     flexDirection: 'row',
-    flex: 1,
-    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
-    borderRadius: 12,
-    marginHorizontal: 2,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 10,
   },
   activeTab: {
     backgroundColor: '#2563eb',
   },
   tabText: {
     color: '#94a3b8',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   activeTabText: {
     color: '#ffffff',
     fontWeight: '700',
+  },
+  dayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#38bdf8',
+    marginTop: 3,
+  },
+  dayDotActive: {
+    backgroundColor: '#ffffff',
   },
   exportGroup: {
     flexDirection: 'row',

@@ -6,14 +6,14 @@ import { logService } from './logService';
 export interface NotificationSettings {
   enabled: boolean;
   leadMinutes: number; // e.g. 10, 15, 30, 60
-  selectedDays: number[]; // 0=Mon ... 4=Fri
+  selectedDays: number[]; // 0=Mon ... 6=Sun
   soundEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: false,
   leadMinutes: 15,
-  selectedDays: [0, 1, 2, 3, 4],
+  selectedDays: [0, 1, 2, 3, 4, 5], // Mon-Sat by default
   soundEnabled: true,
 };
 

@@ -49,7 +49,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
     enabled: false,
     leadMinutes: 15,
-    selectedDays: [0, 1, 2, 3, 4],
+    selectedDays: [0, 1, 2, 3, 4, 5],
     soundEnabled: true,
   });
   const [exactAlarmAllowed, setExactAlarmAllowed] = useState(true);
@@ -345,7 +345,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <View style={styles.divider} />
               <Text style={styles.subSectionTitle}>Hatırlatılacak Günler</Text>
               <View style={styles.daysRow}>
-                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum'].map((day, idx) => {
+                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day, idx) => {
                   const isSelected = notifSettings.selectedDays.includes(idx);
                   return (
                     <TouchableOpacity
@@ -899,7 +899,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   daysRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     marginBottom: 6,
   },
   dayChip: {

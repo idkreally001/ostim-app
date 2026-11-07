@@ -77,8 +77,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
   const findNextClass = (schedule: TimetableEntry[]) => {
     if (!schedule || schedule.length === 0) return;
     const now = new Date();
-    const jsDay = now.getDay(); // 0=Sun, 1=Mon ... 5=Fri
-    const currentDayNo = jsDay >= 1 && jsDay <= 5 ? jsDay - 1 : 0; // 0=Mon ... 4=Fri
+    const jsDay = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+    const currentDayNo = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon ... 5=Sat, 6=Sun
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     // Look for classes today starting after current time
@@ -91,14 +91,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       return h * 60 + m >= currentMinutes;
     });
 
-    const targetClass = upcoming || todayClasses[0] || schedule[0];
+    let targetClass: TimetableEntry | undefined = upcoming;
+
+    // If no upcoming class today, find the earliest class in subsequent days
+    if (!targetClass && schedule.length > 0) {
+      for (let offset = 1; offset <= 7; offset++) {
+        const nextDayId = (currentDayNo + offset) % 7;
+        const nextDayClasses = schedule
+          .filter((c) => c.dayId === nextDayId)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        if (nextDayClasses.length > 0) {
+          targetClass = nextDayClasses[0];
+          break;
+        }
+      }
+    }
+
+    if (!targetClass) {
+      targetClass = schedule[0];
+    }
+
     setNextClass(targetClass);
 
     // Compute formatted day/date text
-    const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+    const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
     const targetDayName = dayNames[targetClass.dayId] || targetClass.dayName || 'Bugün';
 
-    const dateFormatted = now.toLocaleDateString('tr-TR', {
+    // Calculate actual date of target class
+    let targetDate = now;
+    if (targetClass.dayId !== currentDayNo) {
+      const daysAhead = (targetClass.dayId - currentDayNo + 7) % 7 || 7;
+      targetDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+    }
+
+    const dateFormatted = targetDate.toLocaleDateString('tr-TR', {
       day: 'numeric',
       month: 'long',
     });
