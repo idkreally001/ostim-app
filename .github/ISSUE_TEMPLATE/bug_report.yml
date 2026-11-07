@@ -1,0 +1,85 @@
+name: Bug Report
+description: Report an issue or unexpected behavior in OstimOne
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide as much context as possible to help us reproduce and fix it quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "When opening the timetable on Saturdays, the screen displays..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can maintainers reproduce the issue step by step?
+      placeholder: |
+        1. Open the app and log in with student credentials
+        2. Navigate to the "Program" (Timetable) tab
+        3. Tap on Saturday (Cmt)
+        4. Observe the crash or blank state
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+      placeholder: "Expected to see scheduled classes for Saturday."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app_version
+    attributes:
+      label: App Version
+      description: Which version of OstimOne are you running? (Found in Settings > About)
+      options:
+        - "v1.2.0 (Latest)"
+        - "v1.1.2"
+        - "v1.1.1"
+        - "v1.1.0"
+        - "Older / Local Build"
+    validations:
+      required: true
+
+  - type: input
+    id: device_info
+    attributes:
+      label: Device & OS
+      description: Device model and Android version
+      placeholder: "e.g. Google Pixel 7 (Android 14) / Samsung Galaxy S22 (Android 13)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device_architecture
+    attributes:
+      label: Architecture / APK Flavor
+      description: Which APK variant did you install?
+      options:
+        - "arm64-v8a (64-bit)"
+        - "armeabi-v7a (32-bit)"
+        - "Universal"
+        - "Unknown / Direct In-App Update"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostic Logs / Screenshots
+      description: Paste relevant logs from Settings > Sistem Günlükleri or attach screenshots. (Ensure no passwords or tokens are included).
+      render: shell
+    validations:
+      required: false
