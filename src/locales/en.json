@@ -181,5 +181,20 @@
     "current_gpa": "Current GPA",
     "projected_gpa": "Projected GPA",
     "term_gpa": "Term GPA"
+  },
+  "nav": {
+    "summary": "Summary",
+    "timetable": "Schedule",
+    "grades": "Grades",
+    "attendance": "Attendance",
+    "logs": "Logs"
+  },
+  "update": {
+    "title": "New Update Available",
+    "notes": "Release Notes:",
+    "download_now": "Update",
+    "later": "Later",
+    "downloading_background": "Update is downloading in the background...",
+    "download_failed": "Download failed, opening browser..."
   }
 }

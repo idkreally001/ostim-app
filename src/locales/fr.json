@@ -181,5 +181,20 @@
     "current_gpa": "GPA actuel",
     "projected_gpa": "GPA projeté",
     "term_gpa": "Moyenne semestrielle"
+  },
+  "nav": {
+    "summary": "Résumé",
+    "timetable": "Emploi du temps",
+    "grades": "Notes",
+    "attendance": "Présence",
+    "logs": "Journaux"
+  },
+  "update": {
+    "title": "Nouvelle mise à jour disponible",
+    "notes": "Notes de version :",
+    "download_now": "Mettre à jour",
+    "later": "Plus tard",
+    "downloading_background": "Téléchargement de la mise à jour en arrière-plan...",
+    "download_failed": "Échec du téléchargement, ouverture du navigateur..."
   }
 }

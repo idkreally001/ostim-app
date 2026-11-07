@@ -254,9 +254,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* Top Header */}
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.7}>
-          <Text style={styles.backBtnText}>← Geri</Text>
+          <Text style={styles.backBtnText}>← {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>⚙️ Ayarlar & Hakkında</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={styles.headerRightSpacer} />
       </View>
 
@@ -266,22 +266,22 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <View style={styles.logoBadge}>
             <Text style={styles.logoBadgeText}>OSTİM</Text>
           </View>
-          <Text style={styles.appName}>Ostim Mobil</Text>
+          <Text style={styles.appName}>OstimOne</Text>
           <Text style={styles.appDesc}>
-            OSTİM Teknik Üniversitesi Öğrenci Bilgi Sistemi (OBS) & Moodle LMS Asistanı
+            OSTİM Teknik Üniversitesi OBS & Moodle LMS Asistanı
           </Text>
           <View style={styles.versionRow}>
             <View style={styles.versionBadge}>
               <Text style={styles.versionBadgeText}>Sürüm v{CURRENT_APP_VERSION}</Text>
             </View>
             <View style={styles.buildBadge}>
-              <Text style={styles.buildBadgeText}>Build 6 (Android)</Text>
+              <Text style={styles.buildBadgeText}>Build 11 (Android)</Text>
             </View>
           </View>
         </View>
 
         {/* Section 1: Appearance & Theme */}
-        <Text style={styles.sectionHeader}>GÖRÜNÜM & TEMA</Text>
+        <Text style={styles.sectionHeader}>{t('settings.appearance').toUpperCase()}</Text>
         <View style={styles.card}>
           <Text style={styles.cardRowTitle}>Uygulama Teması</Text>
           <Text style={styles.cardRowSub}>Karanlık, aydınlık veya cihaz sistem teması</Text>
@@ -291,9 +291,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onPress={() => setThemeMode('light')}
               activeOpacity={0.7}
             >
-              <Text style={styles.themeOptionIcon}>☀️</Text>
               <Text style={[styles.themeOptionText, themeMode === 'light' && styles.themeOptionTextActive]}>
-                Açık
+                {t('settings.theme_light')}
               </Text>
             </TouchableOpacity>
 
@@ -302,9 +301,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onPress={() => setThemeMode('dark')}
               activeOpacity={0.7}
             >
-              <Text style={styles.themeOptionIcon}>🌙</Text>
               <Text style={[styles.themeOptionText, themeMode === 'dark' && styles.themeOptionTextActive]}>
-                Koyu
+                {t('settings.theme_dark')}
               </Text>
             </TouchableOpacity>
 
@@ -313,16 +311,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onPress={() => setThemeMode('system')}
               activeOpacity={0.7}
             >
-              <Text style={styles.themeOptionIcon}>⚙️</Text>
               <Text style={[styles.themeOptionText, themeMode === 'system' && styles.themeOptionTextActive]}>
-                Sistem
+                {t('settings.theme_system')}
               </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.divider} />
-          <Text style={styles.cardRowTitle}>Uygulama Dili / Language</Text>
-          <Text style={styles.cardRowSub}>Arayüz dili (7 dil desteklenir)</Text>
+          <Text style={styles.cardRowTitle}>{t('settings.language')}</Text>
+          <Text style={styles.cardRowSub}>{t('settings.language_select')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -372,17 +369,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             {checkingUpdate ? (
               <ActivityIndicator color="#ffffff" size="small" />
             ) : (
-              <Text style={styles.actionBtnText}>🔄 Güncellemeleri Denetle</Text>
+              <Text style={styles.actionBtnText}>Güncellemeleri Denetle</Text>
             )}
           </TouchableOpacity>
         </View>
 
         {/* Section 3: Lesson Notifications */}
-        <Text style={styles.sectionHeader}>DERS BİLDİRİMLERİ</Text>
+        <Text style={styles.sectionHeader}>{t('settings.notifications').toUpperCase()}</Text>
         <View style={styles.card}>
           <View style={styles.notifToggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardRowTitle}>Ders Öncesi Hatırlatıcı</Text>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.cardRowTitle}>{t('settings.enable_notifs')}</Text>
               <Text style={styles.cardRowSub}>
                 {notifSettings.enabled ? `Derslerden ${notifSettings.leadMinutes} dakika önce uyar` : 'Bildirimler kapalı'}
               </Text>
@@ -399,7 +396,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           {notifSettings.enabled ? (
             <>
               <View style={styles.divider} />
-              <Text style={styles.subSectionTitle}>Hatırlatma Süresi</Text>
+              <Text style={styles.subSectionTitle}>{t('settings.lead_time')}</Text>
               <View style={styles.leadMinutesRow}>
                 {[10, 15, 30, 45, 60].map((m) => (
                   <TouchableOpacity
@@ -428,24 +425,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.leadChipCustomText}>✏️ Özel...</Text>
+                  <Text style={styles.leadChipCustomText}>{t('settings.custom_duration')}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.divider} />
-              <Text style={styles.subSectionTitle}>Hatırlatılacak Günler</Text>
+              <Text style={styles.subSectionTitle}>{t('settings.reminder_days')}</Text>
               <View style={styles.daysRow}>
-                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day, idx) => {
-                  const isSelected = notifSettings.selectedDays.includes(idx);
+                {[
+                  { key: 'mon', id: 0 },
+                  { key: 'tue', id: 1 },
+                  { key: 'wed', id: 2 },
+                  { key: 'thu', id: 3 },
+                  { key: 'fri', id: 4 },
+                  { key: 'sat', id: 5 },
+                  { key: 'sun', id: 6 },
+                ].map(({ key, id }) => {
+                  const isSelected = notifSettings.selectedDays.includes(id);
                   return (
                     <TouchableOpacity
-                      key={day}
+                      key={id}
                       style={[styles.dayChip, isSelected && styles.dayChipActive]}
-                      onPress={() => handleToggleDay(idx)}
+                      onPress={() => handleToggleDay(id)}
                       activeOpacity={0.7}
                     >
                       <Text style={[styles.dayChipText, isSelected && styles.dayChipTextActive]}>
-                        {day}
+                        {t(`days.${key}` as any)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -461,15 +466,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>⏱️</Text>
-              <View>
-                <Text style={styles.navRowTitle}>Hassas Zamanlama İzni (Exact Alarm)</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navRowTitle}>{t('settings.exact_alarm_permission')}</Text>
                 <Text style={styles.cardRowSub}>
                   {exactAlarmAllowed ? 'İzin Verildi (Zamanında Bildirim)' : 'İzin Gerekiyor (Dokunup Etkinleştir)'}
                 </Text>
               </View>
             </View>
-            <Text style={styles.navRowArrow}>{exactAlarmAllowed ? '✓' : '⚙️'}</Text>
+            <Text style={styles.navRowArrow}>{exactAlarmAllowed ? '✓' : '→'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -502,8 +506,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>🐙</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.navRowTitle}>GitHub Deposu</Text>
                 <Text style={styles.navRowSub}>github.com/{GITHUB_REPO}</Text>
               </View>
@@ -519,8 +522,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>🏷️</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.navRowTitle}>Sürüm Notları (Changelog)</Text>
                 <Text style={styles.navRowSub}>Yayınlanan tüm APK ve sürümleri incele</Text>
               </View>
@@ -536,8 +538,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>💬</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.navRowTitle}>Hata & İstek Bildir (Issues)</Text>
                 <Text style={styles.navRowSub}>Geri bildirim veya öneri paylaş</Text>
               </View>
@@ -555,8 +556,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>📋</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.navRowTitle}>Sistem ve Hata Günlükleri</Text>
                 <Text style={styles.navRowSub}>
                   {logs.length} toplam kayıt {errorCount > 0 ? `(${errorCount} hata)` : ''}
@@ -580,28 +580,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>🔔</Text>
-              <View>
-                <Text style={styles.navRowTitle}>Test Bildirimi Gönder</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navRowTitle}>{t('settings.test_notif')}</Text>
                 <Text style={styles.cardRowSub}>Durum çubuğunda örnek ders hatırlatıcısını gösterir</Text>
               </View>
             </View>
-            <Text style={styles.navRowArrow}>🚀</Text>
+            <Text style={styles.navRowArrow}>→</Text>
           </TouchableOpacity>
         </View>
 
         {/* Section 4: Data & Cache */}
-        <Text style={styles.sectionHeader}>VERİ VE ÖNBELLEK YÖNETİMİ</Text>
+        <Text style={styles.sectionHeader}>{t('settings.cache_management').toUpperCase()}</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.navRow} onPress={handleClearCache} activeOpacity={0.7}>
             <View style={styles.navRowLeft}>
-              <Text style={styles.navRowIcon}>🧹</Text>
-              <View>
-                <Text style={styles.navRowTitle}>Çevrimdışı Önbelleği Temizle</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navRowTitle}>{t('settings.clear_cache')}</Text>
                 <Text style={styles.navRowSub}>Kayıtlı ders programı ve notları sıfırlar</Text>
               </View>
             </View>
-            <Text style={styles.navRowArrow}>🗑️</Text>
+            <Text style={styles.navRowArrow}>→</Text>
           </TouchableOpacity>
 
           {isObsAuthenticated || isLmsAuthenticated ? (
@@ -611,26 +609,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               {isObsAuthenticated && onObsLogout ? (
                 <TouchableOpacity style={styles.navRow} onPress={onObsLogout} activeOpacity={0.7}>
                   <View style={styles.navRowLeft}>
-                    <Text style={styles.navRowIcon}>🎓</Text>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.navRowTitle}>Sadece OBS Oturumunu Kapat</Text>
                       <Text style={styles.navRowSub}>LMS oturumunuz açık kalır</Text>
                     </View>
                   </View>
-                  <Text style={styles.logoutArrow}>🚪</Text>
+                  <Text style={styles.logoutArrow}>→</Text>
                 </TouchableOpacity>
               ) : null}
 
               {isLmsAuthenticated && onLmsLogout ? (
                 <TouchableOpacity style={styles.navRow} onPress={onLmsLogout} activeOpacity={0.7}>
                   <View style={styles.navRowLeft}>
-                    <Text style={styles.navRowIcon}>📚</Text>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.navRowTitle}>Sadece LMS Oturumunu Kapat</Text>
                       <Text style={styles.navRowSub}>OBS oturumunuz açık kalır</Text>
                     </View>
                   </View>
-                  <Text style={styles.logoutArrow}>🚪</Text>
+                  <Text style={styles.logoutArrow}>→</Text>
                 </TouchableOpacity>
               ) : null}
 
@@ -641,8 +637,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   activeOpacity={0.7}
                 >
                   <View style={styles.navRowLeft}>
-                    <Text style={styles.navRowIcon}>🛑</Text>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={[styles.navRowTitle, styles.fullLogoutText]}>
                         Tüm Oturumları Kapat (Tam Çıkış)
                       </Text>
@@ -660,7 +655,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <Text style={styles.sectionHeader}>GÜVENLİK & LİSANS</Text>
         <View style={styles.card}>
           <View style={styles.securityItem}>
-            <Text style={styles.securityTitle}>🔒 Sıfır Bilgi Güvenliği</Text>
+            <Text style={styles.securityTitle}>Sıfır Bilgi Güvenliği</Text>
             <Text style={styles.securityText}>
               Giriş kimlik bilgileriniz (şifreler, OBS JWT anahtarları ve MoodleSession çerezleri)
               hiçbir aracı sunucuya aktarılmaz. Yalnızca cihazınızda güvenli bir şekilde saklanır ve
@@ -669,7 +664,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </View>
           <View style={styles.divider} />
           <View style={styles.securityItem}>
-            <Text style={styles.securityTitle}>📄 MIT Lisansı</Text>
+            <Text style={styles.securityTitle}>MIT Lisansı</Text>
             <Text style={styles.securityText}>
               Bu uygulama açık kaynaklı olup MIT lisansı kapsamında geliştirilmektedir. Üniversite
               öğrencilerine ders programı ve akademik takipleri için bağımsız bir kolaylık sunar.
@@ -1062,6 +1057,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   leadMinutesRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 6,
   },
@@ -1188,6 +1184,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 12,
+    marginRight: 8,
   },
   navRowIcon: {
     fontSize: 20,

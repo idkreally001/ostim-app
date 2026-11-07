@@ -16,19 +16,13 @@ import { FileHelper } from '../utils/fileHelper';
 import { TimetableEntry } from '../types/models';
 import { notificationService } from '../services/notificationService';
 import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n';
 
-const DAYS = [
-  { id: 0, label: 'Pzt', fullName: 'Pazartesi' },
-  { id: 1, label: 'Sal', fullName: 'Salı' },
-  { id: 2, label: 'Çar', fullName: 'Çarşamba' },
-  { id: 3, label: 'Per', fullName: 'Perşembe' },
-  { id: 4, label: 'Cum', fullName: 'Cuma' },
-  { id: 5, label: 'Cmt', fullName: 'Cumartesi' },
-  { id: 6, label: 'Paz', fullName: 'Pazar' },
-];
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 export const TimetableScreen: React.FC = () => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [schedule, setSchedule] = useState<TimetableEntry[]>([]);
   const [isOffline, setIsOffline] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(() => {
@@ -169,30 +163,30 @@ export const TimetableScreen: React.FC = () => {
       {/* Top Bar with Actions & Day Tabs */}
       <View style={[styles.tabBar, { backgroundColor: colors.headerBg, borderBottomColor: colors.cardBorder }]}>
         <View style={styles.topActionsRow}>
-          <Text style={[styles.scheduleSubtitle, { color: colors.textSecondary }]}>Haftalık Program</Text>
+          <Text style={[styles.scheduleSubtitle, { color: colors.textSecondary }]}>{t('timetable.title')}</Text>
           <View style={styles.exportGroup}>
             <TouchableOpacity style={styles.exportBtn} onPress={exportCsv} activeOpacity={0.7}>
-              <Text style={styles.exportBtnText}>📥 CSV</Text>
+              <Text style={styles.exportBtnText}>CSV</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.exportBtnIcs} onPress={exportIcs} activeOpacity={0.7}>
-              <Text style={styles.exportBtnIcsText}>📅 Takvim</Text>
+              <Text style={styles.exportBtnIcsText}>Takvim (ICS)</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.daysRow}>
-          {DAYS.map((day) => {
-            const isActive = day.id === selectedDay;
-            const hasClasses = schedule.some((c) => c.dayId === day.id);
+          {DAY_KEYS.map((key, id) => {
+            const isActive = id === selectedDay;
+            const hasClasses = schedule.some((c) => c.dayId === id);
             return (
               <TouchableOpacity
-                key={day.id}
+                key={id}
                 style={[styles.tab, isActive && styles.activeTab]}
-                onPress={() => setSelectedDay(day.id)}
+                onPress={() => setSelectedDay(id)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                  {day.label}
+                  {t(`days.${key}` as any)}
                 </Text>
                 {hasClasses ? (
                   <View style={[styles.dayDot, isActive && styles.dayDotActive]} />
@@ -206,7 +200,7 @@ export const TimetableScreen: React.FC = () => {
       {/* Offline Mode Banner */}
       {isOffline && schedule.length > 0 ? (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineBannerText}>⚡ Çevrimdışı Mod (Önbellekten Yüklendi)</Text>
+          <Text style={styles.offlineBannerText}>{t('timetable.offline_notice')}</Text>
         </View>
       ) : null}
 
@@ -230,22 +224,22 @@ export const TimetableScreen: React.FC = () => {
         >
           {dayClasses.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🎉</Text>
+              <Text style={styles.emptyIcon}>☕</Text>
               <Text style={styles.emptyTitle}>
-                {isSelectedToday ? 'Bugün ders yok!' : `${DAYS[selectedDay]?.fullName || 'Bu gün'} günü için ders yok`}
+                {isSelectedToday ? t('timetable.no_class_today') : t('timetable.no_class_selected_day')}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {isSelectedToday ? 'İstediğiniz gibi dinlenebilirsiniz.' : `${DAYS[selectedDay]?.fullName || 'Seçilen'} gününe ait planlanmış ders bulunmuyor.`}
+                {t('timetable.rest_message')}
               </Text>
             </View>
           ) : (
             <>
               <View style={styles.listHeaderRow}>
                 <Text style={[styles.listHeaderDay, { color: colors.text }]}>
-                  {DAYS[selectedDay]?.fullName || ''}
+                  {t(`days.${DAY_KEYS[selectedDay]}` as any)}
                 </Text>
                 <Text style={[styles.listHeaderCount, { color: colors.textMuted }]}>
-                  {dayClasses.length} ders
+                  {dayClasses.length} {t('dashboard.enrolled_courses') || 'ders'}
                 </Text>
               </View>
               {dayClasses.map((item, idx) => (

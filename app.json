@@ -2,7 +2,7 @@
   "expo": {
     "name": "OstimOne",
     "slug": "ostimone",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.ostim.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "permissions": ["INTERNET"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

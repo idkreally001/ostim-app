@@ -181,5 +181,20 @@
     "current_gpa": "Cari ÜOMG",
     "projected_gpa": "Proqnozlaşdırılan ÜOMG",
     "term_gpa": "Semestr OMG"
+  },
+  "nav": {
+    "summary": "Xülasə",
+    "timetable": "Cədvəl",
+    "grades": "Qiymətlər",
+    "attendance": "Davamiyyət",
+    "logs": "Jurnal"
+  },
+  "update": {
+    "title": "Yeni Yeniləmə Mövcuddur",
+    "notes": "Yeniliklər və Qeydlər:",
+    "download_now": "Yenilə",
+    "later": "Daha sonra",
+    "downloading_background": "Yeniləmə arxa fonda yüklənir...",
+    "download_failed": "Yükləmə uğursuz oldu, brauzer açılır..."
   }
 }

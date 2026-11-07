@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -92,12 +93,14 @@ class SystemNativeModule(private val reactContext: ReactApplicationContext) :
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            val iconRes = reactContext.applicationInfo.icon.let {
-                if (it != 0) it else android.R.drawable.ic_dialog_info
+            val largeIcon = try {
+                BitmapFactory.decodeResource(reactContext.resources, R.mipmap.ic_launcher)
+            } catch (e: Exception) {
+                null
             }
 
-            val notification = NotificationCompat.Builder(reactContext, CHANNEL_ID)
-                .setSmallIcon(iconRes)
+            val builder = NotificationCompat.Builder(reactContext, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
@@ -105,10 +108,13 @@ class SystemNativeModule(private val reactContext: ReactApplicationContext) :
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(false)
-                .build()
+
+            if (largeIcon != null) {
+                builder.setLargeIcon(largeIcon)
+            }
 
             val manager = reactContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            manager?.notify(NOTIFICATION_ID, notification)
+            manager?.notify(NOTIFICATION_ID, builder.build())
 
             promise.resolve(true)
         } catch (e: Exception) {

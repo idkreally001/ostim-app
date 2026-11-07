@@ -181,5 +181,20 @@
     "current_gpa": "Mevcut AGNO",
     "projected_gpa": "Tahmini AGNO",
     "term_gpa": "Dönem ANO"
+  },
+  "nav": {
+    "summary": "Özet",
+    "timetable": "Program",
+    "grades": "Notlar",
+    "attendance": "Devam",
+    "logs": "Günlük"
+  },
+  "update": {
+    "title": "Yeni Güncelleme Mevcut",
+    "notes": "Yenilikler & Notlar:",
+    "download_now": "Güncelle",
+    "later": "Daha Sonra",
+    "downloading_background": "Güncelleme arka planda indiriliyor...",
+    "download_failed": "İndirme başarısız oldu, tarayıcı açılıyor..."
   }
 }

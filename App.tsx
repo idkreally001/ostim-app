@@ -37,6 +37,7 @@ type ObsTab = 'dashboard' | 'timetable' | 'grades' | 'attendance' | 'logs';
 
 function AppContent() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [initializing, setInitializing] = useState(true);
   const [activePortal, setActivePortal] = useState<Portal>('obs');
 
@@ -316,7 +317,7 @@ function AppContent() {
               activeOpacity={0.7}
             >
               <Text style={styles.logoutBtnText}>
-                🚪 {activePortal === 'obs' ? 'OBS' : 'LMS'}
+                {activePortal === 'obs' ? 'OBS' : 'LMS'}
               </Text>
             </TouchableOpacity>
           ) : null}
@@ -381,7 +382,7 @@ function AppContent() {
           >
             <Text style={styles.navIcon}>🏠</Text>
             <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'dashboard' && [styles.activeNavLabel, { color: colors.primary }]]}>
-              Özet
+              {t('nav.summary')}
             </Text>
           </TouchableOpacity>
 
@@ -391,7 +392,7 @@ function AppContent() {
           >
             <Text style={styles.navIcon}>📅</Text>
             <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'timetable' && [styles.activeNavLabel, { color: colors.primary }]]}>
-              Program
+              {t('nav.timetable')}
             </Text>
           </TouchableOpacity>
 
@@ -401,7 +402,7 @@ function AppContent() {
           >
             <Text style={styles.navIcon}>📊</Text>
             <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'grades' && [styles.activeNavLabel, { color: colors.primary }]]}>
-              Notlar
+              {t('nav.grades')}
             </Text>
           </TouchableOpacity>
 
@@ -411,7 +412,7 @@ function AppContent() {
           >
             <Text style={styles.navIcon}>⏱️</Text>
             <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'attendance' && [styles.activeNavLabel, { color: colors.primary }]]}>
-              Devam
+              {t('nav.attendance')}
             </Text>
           </TouchableOpacity>
 
@@ -430,7 +431,7 @@ function AppContent() {
                 ) : null}
               </View>
               <Text style={[styles.navLabel, { color: colors.textMuted }, obsTab === 'logs' && [styles.activeNavLabel, { color: colors.primary }]]}>
-                Günlük
+                {t('nav.logs')}
               </Text>
             </TouchableOpacity>
           ) : null}
@@ -447,14 +448,14 @@ function AppContent() {
         <View style={styles.logoutModalOverlay}>
           <View style={styles.logoutModalCard}>
             <View style={styles.logoutModalHeader}>
-              <Text style={styles.logoutModalTitle}>🚪 Oturum Yönetimi</Text>
+              <Text style={styles.logoutModalTitle}>{t('auth.logout_confirm_title')}</Text>
               <TouchableOpacity onPress={() => setShowLogoutModal(false)}>
                 <Text style={styles.logoutModalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.logoutModalSub}>
-              Hangi oturumunuzu kapatmak istiyorsunuz?
+              {t('auth.logout_confirm_desc')}
             </Text>
 
             <TouchableOpacity
@@ -464,10 +465,9 @@ function AppContent() {
                 handleObsLogout();
               }}
             >
-              <Text style={styles.logoutOptionIcon}>🎓</Text>
               <View style={styles.logoutOptionInfo}>
-                <Text style={styles.logoutOptionTitle}>Sadece OBS'den Çıkış Yap</Text>
-                <Text style={styles.logoutOptionDesc}>LMS (Moodle) oturumunuz açık kalır.</Text>
+                <Text style={styles.logoutOptionTitle}>{t('auth.logout_obs_only')}</Text>
+                <Text style={styles.logoutOptionDesc}>{t('auth.logout_obs_only_desc')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -478,10 +478,9 @@ function AppContent() {
                 handleLmsLogout();
               }}
             >
-              <Text style={styles.logoutOptionIcon}>📚</Text>
               <View style={styles.logoutOptionInfo}>
-                <Text style={styles.logoutOptionTitle}>Sadece LMS'den Çıkış Yap</Text>
-                <Text style={styles.logoutOptionDesc}>OBS oturumunuz açık kalır.</Text>
+                <Text style={styles.logoutOptionTitle}>{t('auth.logout_lms_only')}</Text>
+                <Text style={styles.logoutOptionDesc}>{t('auth.logout_lms_only_desc')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -492,12 +491,11 @@ function AppContent() {
                 handleFullLogout();
               }}
             >
-              <Text style={styles.logoutOptionIcon}>🛑</Text>
               <View style={styles.logoutOptionInfo}>
                 <Text style={[styles.logoutOptionTitle, styles.logoutFullTitle]}>
-                  Tüm Oturumları Kapat (Tam Çıkış)
+                  {t('auth.logout_all')}
                 </Text>
-                <Text style={styles.logoutOptionDesc}>Her iki sistemden de tamamen çıkış yapılır.</Text>
+                <Text style={styles.logoutOptionDesc}>{t('auth.logout_all_desc')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -505,7 +503,7 @@ function AppContent() {
               style={styles.logoutCancelBtn}
               onPress={() => setShowLogoutModal(false)}
             >
-              <Text style={styles.logoutCancelBtnText}>Vazgeç</Text>
+              <Text style={styles.logoutCancelBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

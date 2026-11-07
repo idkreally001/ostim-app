@@ -110,7 +110,7 @@ class NotificationService {
     let alarmIndex = 0;
     for (const entry of uniqueClasses.values()) {
       const triggerAtMillis = getNextLessonTimestamp(entry.dayId, entry.startTime, settings.leadMinutes);
-      const title = `🔔 Yaklaşan Ders: ${entry.courseCode}`;
+      const title = `Yaklaşan Ders: ${entry.courseCode}`;
       const instructor = entry.instructor ? ` • ${entry.instructor}` : '';
       const message = `${entry.startTime}'de Başlıyor • Derslik: ${entry.classroom}${instructor}`;
       const alarmId = 1000 + alarmIndex;
@@ -132,7 +132,7 @@ class NotificationService {
       return false;
     }
 
-    const title = '🔔 Sıradaki Ders: Algoritmalar & Veri Yapıları';
+    const title = 'Sıradaki Ders: Algoritmalar & Veri Yapıları';
     const message = "10:30'da Başlıyor • Derslik: D-302 • Öğretim Üyesi: Dr. Öğr. Üyesi";
     logService.info('NotificationService', 'Test bildirimi tetiklendi.');
     return await systemNative.showLessonNotification(title, message);

@@ -14,6 +14,7 @@ import { StudentProfile, TimetableEntry } from '../types/models';
 import { weatherService, WeatherInfo, LessonWeatherSummary } from '../services/weatherService';
 import { notificationService } from '../services/notificationService';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n';
 
 interface DashboardScreenProps {
   onLogout: () => void;
@@ -23,6 +24,7 @@ interface DashboardScreenProps {
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNavigateTab, onOpenSimulator }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getDashboardStyles(colors), [colors]);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [isSimulatorEnabled, setIsSimulatorEnabled] = useState(true);
@@ -177,7 +179,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       {/* Material You Header: Greeting & Campus Context */}
       <View style={styles.greetingHeader}>
         <View style={styles.greetingTextContainer}>
-          <Text style={styles.greetingTitle}>Merhaba, {greetingName} 👋</Text>
+          <Text style={styles.greetingTitle}>
+            {t('dashboard.greeting', { name: greetingName })}
+          </Text>
           {currentWeather ? (
             <View style={styles.weatherChip}>
               <Text style={styles.weatherChipEmoji}>{currentWeather.emoji}</Text>
@@ -226,7 +230,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
 
       {/* Next Upcoming Lecture Card */}
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Sıradaki Ders</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.next_class')}</Text>
         {nextClassDateText ? (
           <View style={styles.dateChip}>
             <Text style={styles.dateChipText}>{nextClassDateText}</Text>
@@ -278,13 +282,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
       ) : (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>☕</Text>
-          <Text style={styles.emptyText}>Bugün için planlanmış başka ders bulunmuyor.</Text>
+          <Text style={styles.emptyText}>{t('dashboard.no_upcoming_today')}</Text>
         </View>
       )}
 
       {/* Quick Access Grid */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Hızlı Erişim</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.explore_tools')}</Text>
       </View>
       <View style={styles.grid}>
         <TouchableOpacity
@@ -295,8 +299,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
             <Text style={styles.gridIcon}>📅</Text>
           </View>
-          <Text style={styles.gridTitle}>Haftalık Program</Text>
-          <Text style={styles.gridDesc}>Ders saatleri ve derslikler</Text>
+          <Text style={styles.gridTitle}>{t('dashboard.weekly_timetable')}</Text>
+          <Text style={styles.gridDesc}>{t('dashboard.weekly_timetable_desc')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -307,8 +311,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
             <Text style={styles.gridIcon}>📊</Text>
           </View>
-          <Text style={styles.gridTitle}>Dönem Notları</Text>
-          <Text style={styles.gridDesc}>Vize, final ve başarı durumu</Text>
+          <Text style={styles.gridTitle}>{t('dashboard.term_grades')}</Text>
+          <Text style={styles.gridDesc}>{t('dashboard.term_grades_desc')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -319,8 +323,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(234, 179, 8, 0.12)' }]}>
             <Text style={styles.gridIcon}>⏱️</Text>
           </View>
-          <Text style={styles.gridTitle}>Devamsızlık</Text>
-          <Text style={styles.gridDesc}>Kalan devamsızlık hakları</Text>
+          <Text style={styles.gridTitle}>{t('dashboard.attendance_title')}</Text>
+          <Text style={styles.gridDesc}>{t('dashboard.attendance_desc')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -331,8 +335,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onLogout, onNa
           <View style={[styles.gridIconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.12)' }]}>
             <Text style={styles.gridIcon}>📚</Text>
           </View>
-          <Text style={styles.gridTitle}>Moodle LMS</Text>
-          <Text style={styles.gridDesc}>Ödevler, teslimler ve dokümanlar</Text>
+          <Text style={styles.gridTitle}>{t('dashboard.lms_title')}</Text>
+          <Text style={styles.gridDesc}>{t('dashboard.lms_desc')}</Text>
         </TouchableOpacity>
       </View>
 

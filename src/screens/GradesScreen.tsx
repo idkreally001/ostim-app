@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
-import { GradeEntry, SemesterTerm } from '../types/models';
+import { SemesterTerm, GradeEntry } from '../types/models';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n';
 
 export const GradesScreen: React.FC = () => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getGradesStyles(colors), [colors]);
 
   const [terms, setTerms] = useState<SemesterTerm[]>([]);
@@ -142,7 +144,7 @@ export const GradesScreen: React.FC = () => {
         >
           {grades.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Bu dönem için girilmiş not bulunmuyor.</Text>
+              <Text style={styles.emptyText}>{t('grades.no_grades')}</Text>
             </View>
           ) : (
             grades.map((item, idx) => {
@@ -177,7 +179,7 @@ export const GradesScreen: React.FC = () => {
                             item.passed ? styles.passSuccess : styles.passFail,
                           ]}
                         >
-                          {item.passed ? 'Geçti' : 'Kaldı'}
+                          {item.passed ? t('grades.passed') : t('grades.failed')}
                         </Text>
                       ) : null}
                     </View>
@@ -185,22 +187,22 @@ export const GradesScreen: React.FC = () => {
 
                   <View style={styles.scoresRow}>
                     <View style={styles.scoreBox}>
-                      <Text style={styles.scoreLabel}>VİZE (%40)</Text>
+                      <Text style={styles.scoreLabel}>{t('grades.midterm').toUpperCase()} (40%)</Text>
                       <Text style={styles.scoreVal}>{item.midterm ?? '-'}</Text>
                     </View>
 
                     <View style={styles.scoreBox}>
-                      <Text style={styles.scoreLabel}>FİNAL (%60)</Text>
+                      <Text style={styles.scoreLabel}>{t('grades.final').toUpperCase()} (60%)</Text>
                       <Text style={styles.scoreVal}>{item.finalExam ?? '-'}</Text>
                     </View>
 
                     <View style={styles.scoreBox}>
-                      <Text style={styles.scoreLabel}>BÜT</Text>
+                      <Text style={styles.scoreLabel}>{t('grades.makeup').toUpperCase()}</Text>
                       <Text style={styles.scoreVal}>{item.makeupExam ?? '-'}</Text>
                     </View>
 
                     <View style={styles.scoreBox}>
-                      <Text style={styles.scoreLabel}>ORTALAMA</Text>
+                      <Text style={styles.scoreLabel}>{t('grades.average').toUpperCase()}</Text>
                       <Text style={[styles.scoreVal, { color: colors.primary }]}>
                         {calcAvg || item.gradeAverage || '-'}
                       </Text>
@@ -211,7 +213,7 @@ export const GradesScreen: React.FC = () => {
                   {!hasFinal && midtermNum > 0 ? (
                     <View style={styles.passReqBadge}>
                       <Text style={styles.passReqText}>
-                        🎯 Hedef: Geçmek için min <Text style={styles.passReqBold}>{req50}</Text> • CC için min <Text style={styles.passReqBold}>{reqCC}</Text>
+                        Hedef: Geçmek için min <Text style={styles.passReqBold}>{req50}</Text> • CC için min <Text style={styles.passReqBold}>{reqCC}</Text>
                       </Text>
                     </View>
                   ) : null}

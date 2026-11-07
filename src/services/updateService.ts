@@ -1,9 +1,9 @@
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, ToastAndroid } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { logService } from './logService';
 import { systemNative } from '../utils/systemNative';
 
-export const CURRENT_APP_VERSION = '1.2.0';
+export const CURRENT_APP_VERSION = '1.2.1';
 export const GITHUB_REPO = 'idkreally001/ostim-app';
 
 export interface UpdateInfo {
@@ -186,6 +186,52 @@ class UpdateService {
       logService.error('UpdateService', 'Uygulama içi indirme hatası, tarayıcıya geçiliyor', err.message);
       await this.downloadAndInstall(updateInfo);
       return false;
+    }
+  }
+
+  /**
+   * Background APK download.
+   * Downloads in the background without blocking the UI and invokes the system installer when done.
+   */
+  async startBackgroundUpdate(updateInfo: UpdateInfo): Promise<void> {
+    const apkUrl = updateInfo.apkDownloadUrl;
+    if (!apkUrl || Platform.OS !== 'android') {
+      await this.downloadAndInstall(updateInfo);
+      return;
+    }
+
+    try {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Güncelleme arka planda indiriliyor...', ToastAndroid.LONG);
+      }
+
+      const fileName = `ostim-app-v${updateInfo.latestVersion}.apk`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+      logService.info('UpdateService', `Arka plan indirmesi başlatıldı: ${fileName}`);
+
+      // Check if already in cache
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (fileInfo.exists && (fileInfo as any).size > 10 * 1024 * 1024) {
+        logService.info('UpdateService', 'APK önbellekte hazır, sistem yükleyicisi açılıyor.');
+        await systemNative.installApk(fileUri);
+        return;
+      }
+
+      const downloadResumable = FileSystem.createDownloadResumable(apkUrl, fileUri, {});
+      const result = await downloadResumable.downloadAsync();
+      if (result && result.uri) {
+        logService.info('UpdateService', `APK indirildi, sistem paket yükleyici açılıyor: ${result.uri}`);
+        await systemNative.installApk(result.uri);
+      } else {
+        throw new Error('İndirme dosyası oluşturulamadı.');
+      }
+    } catch (err: any) {
+      logService.error('UpdateService', 'Arka plan indirme hatası, tarayıcıya yönlendiriliyor', err.message);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('İndirme başarısız oldu, tarayıcı açılıyor...', ToastAndroid.SHORT);
+      }
+      await this.downloadAndInstall(updateInfo);
     }
   }
 

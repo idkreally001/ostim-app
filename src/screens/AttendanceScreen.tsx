@@ -11,9 +11,11 @@ import { obsClient } from '../api/obsClient';
 import { AuthStorage } from '../storage/authStorage';
 import { AttendanceEntry } from '../types/models';
 import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n';
 
 export const AttendanceScreen: React.FC = () => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,7 +69,7 @@ export const AttendanceScreen: React.FC = () => {
         >
           {attendance.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Devamsızlık bilgisi bulunamadı.</Text>
+              <Text style={styles.emptyText}>{t('attendance.no_attendance')}</Text>
             </View>
           ) : (
             attendance.map((item, idx) => {
@@ -99,7 +101,7 @@ export const AttendanceScreen: React.FC = () => {
                           item.status !== 'Devam Ediyor' && styles.statusTextFailed,
                         ]}
                       >
-                        {item.status}
+                        {item.status === 'Devam Ediyor' ? t('attendance.ongoing') : item.status}
                       </Text>
                     </View>
                   </View>
@@ -119,9 +121,9 @@ export const AttendanceScreen: React.FC = () => {
                   {/* Details Row */}
                   <View style={styles.statsRow}>
                     <Text style={styles.statDetail}>
-                      Kullanılan:{' '}
+                      {t('attendance.used')}:{' '}
                       <Text style={styles.statBold}>
-                        {totalAbsent} / {max} Saat
+                        {totalAbsent} / {max} {t('attendance.hours')}
                       </Text>
                     </Text>
                     <Text
@@ -130,7 +132,7 @@ export const AttendanceScreen: React.FC = () => {
                         { color: remaining <= 2 && max > 0 ? '#ef4444' : '#94a3b8' },
                       ]}
                     >
-                      {max > 0 ? `Kalan Hak: ${remaining} Saat` : 'Sınırsız'}
+                      {max > 0 ? `${t('attendance.remaining')}: ${remaining} ${t('attendance.hours')}` : t('attendance.unlimited')}
                     </Text>
                   </View>
                 </View>

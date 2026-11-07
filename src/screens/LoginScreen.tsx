@@ -20,6 +20,7 @@ import { configManager } from '../config/configManager';
 import { AppAlert } from '../utils/alertHelper';
 import { LmsSessionData } from '../types/models';
 import { LmsWebViewLogin } from '../components/LmsWebViewLogin';
+import { useLanguage } from '../i18n';
 
 interface LoginScreenProps {
   initialPortal?: 'obs' | 'lms';
@@ -40,6 +41,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onContinueToPortal,
   onOpenSettings,
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'obs' | 'lms'>(initialPortal);
 
   // OBS Form State
@@ -254,10 +256,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               ) : (
                 /* OBS Login Form */
                 <View style={styles.form}>
-                  <Text style={styles.label}>Öğrenci Numarası</Text>
+                  <Text style={styles.label}>{t('auth.student_no')}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Örn: 220000000"
+                    placeholder="220000000"
                     placeholderTextColor="#64748b"
                     value={studentNo}
                     onChangeText={setStudentNo}
@@ -265,7 +267,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     autoCapitalize="none"
                   />
 
-                  <Text style={styles.label}>OBS Şifresi</Text>
+                  <Text style={styles.label}>{t('auth.password')}</Text>
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={styles.passwordInput}
@@ -291,7 +293,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     {obsLoading ? (
                       <ActivityIndicator color="#ffffff" />
                     ) : (
-                      <Text style={styles.primaryButtonText}>OBS ile Giriş Yap</Text>
+                      <Text style={styles.primaryButtonText}>{t('auth.obs_login')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -355,14 +357,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     activeOpacity={0.7}
                   >
                     <Text style={styles.manualToggleText}>
-                      {showManualLms ? '▲ Manuel Girişi Gizle' : '⚙️ Manuel Giriş (Sesskey & Çerez)'}
+                      {showManualLms ? 'Manuel Girişi Gizle' : 'Manuel Giriş (Sesskey & Çerez)'}
                     </Text>
                   </TouchableOpacity>
 
                   {showManualLms ? (
                     <View style={styles.manualSection}>
                       <View style={styles.oidcInfoBox}>
-                        <Text style={styles.oidcInfoTitle}>🔐 Manuel Moodle Girişi</Text>
+                        <Text style={styles.oidcInfoTitle}>Manuel Moodle Girişi</Text>
                         <Text style={styles.oidcInfoDesc}>
                           Tarayıcı geliştirici araçlarından aldığınız sesskey ve MoodleSession çerez değerini yapıştırarak da bağlanabilirsiniz.
                         </Text>
